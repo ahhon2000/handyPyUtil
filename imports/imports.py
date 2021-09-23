@@ -116,9 +116,11 @@ def importClassesFromPackage(packageInitFile):
     letter and it contains a class of the same name.
 
     NOTE: This function does not itself import anything, it returns a script
-    instead that should passed on to exec in the package's namespace.
+    instead that should be passed on to exec in the package's namespace.
 
     USAGE: In the package's __init__.py:
+
+        from handyPyUtil.imports import importClassesFromPackage
         exec(importClassesFromPackage(__file__))
 
     """
