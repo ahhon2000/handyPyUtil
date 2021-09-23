@@ -28,14 +28,17 @@ def inclPath(*dirs, includeProjectRoot=True):
     
     1. If you have a script intended to be launched from any directory on the
     file system and you want to conveniently add the paths for that script's
-    dependencies to sys.path put the following line at top of the script:
+    dependencies to sys.path put the following line at the top of the script:
 
         with open("/path/to/handyPyUtil/cfg.py") as _: exec(_.read())
 
     This will automatically import inclPath() and allow for including
     paths relative to the script's parent directory.
 
-    2. In any case, you can always import inclPath normally:
+    Even without any calls to inclPath(), cfg.py will extend sys.path with
+    the path for locating handyPyUtil and the script's parent directory.
+
+    2. You can always import inclPath normally:
 
         from handyPyUtil.imports import inclPath
 
