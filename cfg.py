@@ -1,23 +1,21 @@
-import pathlib
-import sys
-import os
-import psutil
 
 def init():
-    cfgPath, cfgfh = None, None
+    import pathlib
+    import sys
+    import os
+    import psutil
+
+    cfgPath = None
     for fh in sorted(
         psutil.Process().open_files(),
         reverse=True, key=lambda fh: fh.fd,
     ):
         f = pathlib.Path(fh.path).resolve()
-        print(f.name)
         if f.name == 'cfg.py'  and  (f.parent / '.this_is_handy').exists():
             cfgPath, cfgfh = f, fh
             break
 
-    if not cfgPath: raise ImportError(f'cannot locate the handy cfg file')
-
-    #os.close(cfgfh.fd)
+    if not cfgPath: raise ImportError(f'cannot locate the Handy cfg file')
 
     handyPath = cfgPath.parent
 
@@ -31,12 +29,13 @@ def init():
     ):
         sys.path.append(str(handyPath.parent))
 
+    from handyPyUtil.imports import HandyCfg
+
+    handCfg = HandyCfg(handyPath)
+
     return handyPath
 
+HANDY_CFG = init()
+del init
 
-handyPath = init()
-from handyPyUtil.imports import inclPath, HandyCfg
-
-HANDY_CFG = HandyCfg(handyPath)
-
-del init, handyPath
+from handyPyUtil.imports import inclPath
