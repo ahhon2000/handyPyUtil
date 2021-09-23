@@ -1,3 +1,4 @@
+import re
 import sys
 import random
 import time
@@ -8,30 +9,27 @@ from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
 
+TMP = Path('/tmp')
+TMP_DIR_BASE = ".handyTest"
 
-class TestKitBase:
+class TestKit:
     def __init__(self,
-        tmpFileBase = "",
         nocleanup=False, **kwarg
     ):
-        if not tmpFileBase: raise Exception('tmpFileBase is missing')
-        self.tmpFileBase = tmpFileBase
         self.nocleanup = nocleanup
+        self.tmpDir = None
 
-        tmpFileBase = tmpFileBase
+    def __enter__(self):
         dt = Date("now").toText()
         sec = round(time.time())
         rnds = genRandomStr(10)
 
-        tmpDir = Path(f'/tmp/{tmpFileBase}.{sec}.{rnds}')
+        tmpDir = TMP / Path(f'{TMP_DIR_BASE}.{sec}.{rnds}')
         self.tmpDir = tmpDir 
 
         tmpDir.mkdir(parents=True)
         if not tmpDir.exists(): raise Exception(f'{tmpDir} does not exist')
 
-        self._changeConfigPaths()
-
-    def __enter__(self):
         return self
 
     def __exit__(self, Type, value, tb):
@@ -40,3 +38,11 @@ class TestKitBase:
             print(f'we have kept the tmp dir: {tmpDir}')
         else:
             if tmpDir.exists(): shutil.rmtree(tmpDir)
+
+    def cleanup(self):
+        for d in (
+            f for f in TMP.iterdir()
+                if f.is_dir() and TMP_DIR_BASE == f.name[0:len(TMP_DIR_BASE)]
+        ):
+            print(f'removing {d}')
+            shutil.rmtree(d)

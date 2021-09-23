@@ -5,7 +5,7 @@ import inspect
 
 PROJECT_ROOT_PLACEHOLDER = '.project_root'
 
-def inclPath(*dirs, includeProjectRoot=True):
+def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     """Add each directory in dirs to sys.path, unless it is already there.
 
     An element in dirs can be either an absolute path or a path relative to
@@ -56,9 +56,6 @@ def inclPath(*dirs, includeProjectRoot=True):
 
     needProjectRoot = includeProjectRoot
     for p in ps:
-        if not p.exists(): raise ImportError(f'directory {p} does not exist')
-        if not p.is_dir(): raise ImportError(f'file {p} is not a directory')
-
         if not p.is_absolute(): needProjectRoot = True
 
     projectRoot = None
@@ -99,7 +96,6 @@ def inclPath(*dirs, includeProjectRoot=True):
         if not p.is_absolute(): p = (projectRoot / p).resolve()
         s = str(p)
         addPathIfNew(s)
-
     
     # extend sys.path with pathsToAdd
     ss = [
@@ -108,6 +104,12 @@ def inclPath(*dirs, includeProjectRoot=True):
             key = lambda it: it[1],
         )
     ]
+
+    if checkDirExistence:
+        for s in ss:
+            p = Path(s)
+            if not p.exists(): raise ImportError(f'directory {p} does not exist')
+            if not p.is_dir(): raise ImportError(f'file {p} is not a directory')
 
     sys.path.extend(ss)
 

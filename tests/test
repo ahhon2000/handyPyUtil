@@ -1,33 +1,63 @@
-#!/bin/bash
+#!/usr/bin/python3
+from pathlib import Path
+cfgDir = Path(__file__).resolve().parent.parent
+cfgFile = cfgDir/ 'cfg.py'
+with open(str(cfgFile)) as _: exec(_.read())
 
-d="`dirname "$0"`"
+import argparse
+import re
+import subprocess
+import sys, os
 
-failed=()
+argp = argparse.ArgumentParser()
 
-pushd "$d" > /dev/null
+argp.add_argument('-c', '--cleanup', action="store_true", help="clean up tmp directories")
+argp.add_argument("files", nargs='*')
 
-if ! ls | grep '\<t_' > /dev/null; then
-    exit 0
-fi
+opt = argp.parse_args(sys.argv[1:])
 
-for t in t_*; do
-	echo "running  $t"
-	./"$t" > /dev/null
-	if [ $? -ne 0 ]; then
-		failed[${#failed[@]}]="$t"
-	fi
-done
-popd > /dev/null
+if opt.cleanup:
+    from handyPyUtil.tests import TestKit
+    tk = TestKit()
+    tk.cleanup()
+    sys.exit(0)
 
-nf=${#failed[@]}
+#scrDir = Path(sys.argv[0]).resolve().parent
 
-echo
-if [ "$nf" -ne 0 ]; then
-	echo "The following $nf tests failed:"
-	for t in "${failed[@]}"; do
-		echo -e "\t$t"
-	done
-        exit 1
-else
-	echo "All tests passed"
-fi
+fs = list(map(lambda f: Path(f).resolve(), opt.files))
+if not fs: fs.append(Path('.').resolve())
+
+for f in fs:
+    if not f.exists(): raise Exception('{f} does not exist')
+
+failed = []
+
+def runFile(f):
+    if f.is_dir():
+        d0 = Path('.').resolve()
+        os.chdir(str(f))
+        for ff in sorted(f.iterdir()):
+            if re.search(r'^[.]', ff.name): continue
+            runFile(ff)
+        os.chdir(str(d0))
+    elif re.search(r'^t_.+', f.name):
+        print(f"\nRunning {f}")
+        st = subprocess.call(str(f))
+        if st:
+            failed.append(f)
+
+for f in fs:
+    runFile(f)
+
+
+print()
+nf = len(failed)
+if nf:
+    print(f"The following {nf} test{'s' if nf > 1 else ''} failed:")
+    for t in failed:
+        print(f"    {t}")
+
+    print()
+    sys.exit(1)
+else:
+    print("All tests passed")

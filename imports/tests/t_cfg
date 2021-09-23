@@ -1,0 +1,36 @@
+#!/usr/bin/python3
+from pathlib import Path
+cfgDir = Path(__file__).resolve().parent.parent.parent
+cfgFile = cfgDir/ 'cfg.py'
+with open(str(cfgFile)) as _: exec(_.read())
+
+import subprocess
+
+from handyPyUtil.tests import TestKit
+from handyPyUtil.subproc import Pipe
+
+with TestKit(nocleanup=False) as tk:
+    tmpDir = tk.tmpDir
+    f = tmpDir / "myScript.py"
+
+    subdir = tmpDir / 'subdir'
+    subdir.mkdir()
+
+    (tmpDir / '.project_root').write_text("\n")
+    (subdir / 'subfile.py').write_text("\n")
+
+    f.write_text(f"""
+from pathlib import Path
+with open("{str(cfgFile)}") as _: exec(_.read())
+
+inclPath('subdir')
+
+import subfile
+import handyPyUtil
+
+"""[1:-1])
+
+    p = Pipe(['python3', str(f)])
+    if p.status:
+        print(p.stderr)
+    assert not p.status
