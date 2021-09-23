@@ -1,35 +1,113 @@
 import sys, os
 from pathlib import Path
 from itertools import chain
+import inspect
 
-def inclPath(*dirs, defaults=()):
+PROJECT_ROOT_PLACEHOLDER = '.project_root'
+
+def inclPath(*dirs, includeProjectRoot=True):
     """Add each directory in dirs to sys.path, unless it is already there.
 
-    An element in dirs can be a path relative to the project root or an
-    absolute path. It can be given either as a string or a Path instance.
+    An element in dirs can be either an absolute path or a path relative to
+    the project root. It can be given either as a string or a Path instance.
 
-    The project root is the first upper-level directory found to contain
-    a placeholder file .project_root
+    The project root is the nearest upper-level directory, relative to
+    the inclPath() caller's file, found to contain a placeholder file
+    `.project_root'.
+
+    The project root is only searched for if dirs contains relative paths or
+    if includeProjectRoot is True.
+
+    If includeProjectRoot is True the project root will be added to sys.path
+    as well.
+
+    This function will also make sure that the script's parent directory
+    (i. e. sys.argv[0]) is on sys.path.
+
+    *** USAGE ***
     
-    To use this function in a script put the following lines at the beginning:
+    1. If you have a script intended to be launched from any directory on the
+    file system and you want to conveniently add the paths for that script's
+    dependencies to sys.path put the following line at top of the script:
 
-    import sys, pathlib; d = pathlib.Path(__file__).resolve()
-    while d.parent != d and not (d / 'Common.py').exists(): d = d.parent
-    sys.path.count(str(d)) or sys.path.insert(0,str(d)); from Common import inclPath
+        with open("/path/to/handyPyUtil/cfg.py") as _: exec(_.read())
 
-    Then you can include paths relative to the main directory like this:
+    This will automatically import inclPath() and allow for including
+    paths relative to the script's parent directory.
 
-    inclPath('maintenance', 'maintenance/tests')
+    2. In any case, you can always import inclPath normally:
+
+        from handyPyUtil.imports import inclPath
+
+    3. Examples:
+
+        inclPath('maintenance')
+        inclPath('core', 'core/tests')
+        inclPath('core')
+        inclPath('mypackage', includeProjectRoot=False)
+        inclPath()    # this will just add the project root to sys.path
+
     """
 
-    dirs = list(dirs)
-    dirs.extend(defaults)
+    ps = list(map(Path, dirs))
 
-    p0 = Path(__file__).resolve().parent
-    for p in chain((p0,), map(lambda d: p0 / d, dirs)):
-        sp = str(p)
-        if sp not in sys.path:
-            sys.path.insert(0, sp)
+    needProjectRoot = includeProjectRoot
+    for p in ps:
+        if not p.exists(): raise ImportError(f'directory {p} does not exist')
+        if not p.is_dir(): raise ImportError(f'file {p} is not a directory')
+
+        if not p.is_absolute(): needProjectRoot = True
+
+    projectRoot = None
+    if needProjectRoot:
+        frames = inspect.stack()
+        callerFile = None
+        for i, frame in enumerate(frames):
+            if frame.function == 'inclPath':
+                callerFile = Path(frames[i+1].filename).resolve()
+                break
+
+        if not callerFile: raise Exception(f'could not determine the caller file')
+
+        d = callerFile.parent
+        while d != d.parent:
+            if (d / PROJECT_ROOT_PLACEHOLDER).exists():
+                projectRoot = d
+                break
+            d = d.parent
+        if not projectRoot: raise Exception('Could not find the project root directory. Either mark it with a .project_root placeholder file or call inclPath() with includeProjectRoot=False')
+
+    existingPaths = set(str(Path(s).resolve()) for s in sys.path)
+    pathsToAdd = {}  # format:  path_string: order_int
+
+    def addPathIfNew(p):
+        s = str(p)
+        if s not in pathsToAdd  and  s not in existingPaths:
+            pathsToAdd[s] = len(pathsToAdd)
+
+    # add the script's parent
+    addPathIfNew(Path(sys.argv[0]).resolve().parent)
+
+    # add the project root
+    if includeProjectRoot: addPathIfNew(projectRoot)
+
+    # add unique paths from dirs
+    for p in ps:
+        if not p.is_absolute(): p = (projectRoot / p).resolve()
+        s = str(p)
+        addPathIfNew(s)
+
+    
+    # extend sys.path with pathsToAdd
+    ss = [
+        s for s, i in sorted(
+            pathsToAdd.items(),
+            key = lambda it: it[1],
+        )
+    ]
+
+    sys.path.extend(ss)
+
 
 def importClassesFromPackage(packageInitFile):
     """Import classes from `class files'
