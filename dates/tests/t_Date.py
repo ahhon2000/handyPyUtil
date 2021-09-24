@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-from pathlib import Path
-with open(Path(__file__).parent.parent.parent / 'cfg.py') as _: exec(_.read())
+from pathlib import Path as P; E=P.exists;R=P.resolve; l=R(P(__file__)).parents
+with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
 
 from math import isclose
 

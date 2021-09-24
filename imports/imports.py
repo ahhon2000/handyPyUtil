@@ -1,7 +1,7 @@
 import sys, os
 from pathlib import Path
 from itertools import chain
-import inspect
+import traceback
 
 PROJECT_ROOT_PLACEHOLDER = '.project_root'
 
@@ -28,12 +28,12 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     
     1. If you have a script intended to be launched from any directory on the
     file system and you want to conveniently add the paths for that script's
-    dependencies to sys.path put the following line at the top of the script:
+    dependencies to sys.path you need to put a couple of lines of code at
+    the top of your script. Follow the steps described in the comments in
+    cfg.py.
 
-        with open("/path/to/handyPyUtil/cfg.py") as _: exec(_.read())
-
-    This will automatically import inclPath() and allow for including
-    paths relative to the script's parent directory.
+    `Sourcing' cfg.py in that manner will automatically import inclPath(),
+    which allows for including paths relative to the script's parent directory.
 
     Even without any calls to inclPath(), cfg.py will extend sys.path with
     the path for locating handyPyUtil and the script's parent directory.
@@ -60,10 +60,10 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
 
     projectRoot = None
     if needProjectRoot:
-        frames = inspect.stack()
+        frames = list(reversed(traceback.extract_stack()))
         callerFile = None
         for i, frame in enumerate(frames):
-            if frame.function == 'inclPath':
+            if frame.name == 'inclPath':
                 callerFile = Path(frames[i+1].filename).resolve()
                 break
 

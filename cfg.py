@@ -3,15 +3,24 @@
         If you have a script that needs to be launched from any directory on
         the file system you can manage its sys.path in the following way:
 
-        1. Put the following line at the top of the script:
+        1. Place a link to handyPyUtil/cfg.py in the script's directory or
+        anywhere in its parent directories. The link filename need not be
+        `cfg.py' but it must be the same as in the next step.
 
-            with open("/path/to/handyPyUtil/cfg.py") as _: exec(_.read())
+        2. Put the following lines at the top of the script:
 
-        This will add the path for locating handyPyUtil to sys.path. The
-        script's parent directory will be added, too.
+from pathlib import Path as P; E=P.exists;R=P.resolve; l=R(P(__file__)).parents
+with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
 
-        2. [OPTIONAL] Add paths to sys.path with inclPath(), which has been
-        automatically imported by cfg.py:
+        This will search for the first occurrence of cfg.py from the script's
+        directory and above. Once found, cfg.py will be resolved for symlinks
+        to detect the location of handyPyUtil.
+
+        The path for locating handyPyUtil will be added to sys.path, along with
+        the script's parent directory.
+
+        3. [OPTIONAL] Add paths to sys.path with inclPath(), which at this point
+        has been automatically imported by cfg.py:
 
             inclPath('maintenance/tests', 'core')
 
@@ -21,8 +30,10 @@
         is already there.
 """
 
+# TODO replace with hcfg.py
+
 def init():
-    import pathlib
+    from pathlib import Path
     import sys
     import os
     import psutil
@@ -32,7 +43,7 @@ def init():
         psutil.Process().open_files(),
         reverse=True, key=lambda fh: fh.fd,
     ):
-        f = pathlib.Path(fh.path).resolve()
+        f = Path(fh.path).resolve()
         if f.name == 'cfg.py'  and  (f.parent / '.this_is_handy').exists():
             cfgPath, cfgfh = f, fh
             break
@@ -44,7 +55,7 @@ def init():
     if not next(
         (
             p for p in (
-                pathlib.Path(s).resolve() for s in sys.path
+                Path(s).resolve() for s in sys.path
             ) if p.exists() and p.samefile(handyPath.parent)
         ),
         None,
