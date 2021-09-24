@@ -33,7 +33,7 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     cfg.py.
 
     `Sourcing' cfg.py in that manner will automatically import inclPath(),
-    which allows for including paths relative to the script's parent directory.
+    which allows for including paths relative to the project root.
 
     Even without any calls to inclPath(), cfg.py will extend sys.path with
     the path for locating handyPyUtil and the script's parent directory.
