@@ -61,20 +61,26 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     projectRoot = None
     if needProjectRoot:
         frames = list(reversed(traceback.extract_stack()))
-        callerFile = None
+        frameInd0 = None
         for i, frame in enumerate(frames):
             if frame.name == 'inclPath':
-                callerFile = Path(frames[i+1].filename).resolve()
+                frameInd0 = i + 1
                 break
+        if frameInd0 is None: raise Exception('could not detect the caller frame')
 
-        if not callerFile: raise Exception(f'could not determine the caller file')
+        for i in range(frameInd0, len(frames)):
+            frame = frames[i]
+            callerFile = Path(frame.filename).resolve()
 
-        d = callerFile.parent
-        while d != d.parent:
-            if (d / PROJECT_ROOT_PLACEHOLDER).exists():
-                projectRoot = d
-                break
-            d = d.parent
+            d = callerFile.parent
+            while d != d.parent:
+                if (d / PROJECT_ROOT_PLACEHOLDER).exists():
+                    projectRoot = d
+                    break
+                d = d.parent
+
+            if projectRoot: break
+
         if not projectRoot: raise Exception('Could not find the project root directory. Either mark it with a .project_root placeholder file or call inclPath() with includeProjectRoot=False')
 
     existingPaths = set(str(Path(s).resolve()) for s in sys.path)
