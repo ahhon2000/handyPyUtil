@@ -30,8 +30,6 @@ with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
         is already there.
 """
 
-# TODO replace with hcfg.py
-
 def init():
     from pathlib import Path
     import sys
