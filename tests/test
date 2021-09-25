@@ -17,9 +17,8 @@ argp.add_argument("files", nargs='*')
 opt = argp.parse_args(sys.argv[1:])
 
 if opt.cleanup:
-    from handyPyUtil.tests import TestKit
-    tk = TestKit()
-    tk.cleanup()
+    from handyPyUtil.tests.util import cleanup as hpy_cleanup
+    hpy_cleanup()
     sys.exit(0)
 
 #scrDir = Path(sys.argv[0]).resolve().parent

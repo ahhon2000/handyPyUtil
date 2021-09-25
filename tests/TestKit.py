@@ -8,14 +8,19 @@ from pathlib import Path
 from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
-
-TMP = Path('/tmp')
-TMP_DIR_BASE = ".handyTest"
+from .TestKitRegister import TestKitRegister
 
 class TestKit:
     def __init__(self,
-        nocleanup=False, **kwarg
+        tmpDirParent = Path('/tmp'),
+        tmpDirBase = ".handyTest",
+        nocleanup=False,
+        **kwarg,
     ):
+        if not tmpDirParent.exists(): raise Exception(f'{tmpDirParent} does not exist')
+
+        self.tmpDirParent = tmpDirParent
+        self.tmpDirBase = tmpDirBase
         self.nocleanup = nocleanup
         self.tmpDir = None
 
@@ -24,9 +29,12 @@ class TestKit:
         sec = round(time.time())
         rnds = genRandomStr(10)
 
-        tmpDir = TMP / Path(f'{TMP_DIR_BASE}.{sec}.{rnds}')
+        tmpDirBase = self.tmpDirBase
+
+        tmpDir = self.tmpDirParent / Path(f'{tmpDirBase}.{sec}.{rnds}')
         self.tmpDir = tmpDir 
 
+        if tmpDir.exists(): raise Exception(f'{tmpDir} already exists')
         tmpDir.mkdir(parents=True)
         if not tmpDir.exists(): raise Exception(f'{tmpDir} does not exist')
 
@@ -35,14 +43,13 @@ class TestKit:
     def __exit__(self, Type, value, tb):
         tmpDir = self.tmpDir
         if self.nocleanup:
+            tkr = TestKitRegister()
+            tkr.preserve(self)
             print(f'we have kept the tmp dir: {tmpDir}')
         else:
             if tmpDir.exists(): shutil.rmtree(tmpDir)
 
-    def cleanup(self):
-        for d in (
-            f for f in TMP.iterdir()
-                if f.is_dir() and TMP_DIR_BASE == f.name[0:len(TMP_DIR_BASE)]
-        ):
-            print(f'removing {d}')
-            shutil.rmtree(d)
+    def cleanup(self, after_nocleanup=False):
+        tmpDir = self.tmpDir
+        if tmpDir and tmpDir.exists():
+            shutil.rmtree(tmpDir)
