@@ -63,7 +63,9 @@ def init():
     from handyPyUtil.imports import inclPath, HandyCfg
 
     # add the script's parent directory to sys.path
-    inclPath(Path(sys.argv[0]).resolve().parent, includeProjectRoot=False)
+    inclPath(Path(sys.argv[0]).resolve().parent,
+        iProjectRoot=False, iProjectRootParent=False,
+    )
 
     handCfg = HandyCfg(handyPath)
 

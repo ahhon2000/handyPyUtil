@@ -5,7 +5,11 @@ import traceback
 
 PROJECT_ROOT_PLACEHOLDER = '.project_root'
 
-def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
+def inclPath(*dirs,
+    iProjectRoot = True,
+    iProjectRootParent = True,
+    checkDirExistence = True,
+):
     """Add each directory in dirs to sys.path, unless it is already there.
 
     An element in dirs can be either an absolute path or a path relative to
@@ -15,11 +19,11 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     the inclPath() caller's file, found to contain a placeholder file
     `.project_root'.
 
-    The project root is only searched for if dirs contains relative paths or
-    if includeProjectRoot is True.
+    The project root is only searched for if dirs contains relative paths, or
+    if at least one of iProjectRoot, iProjectRootParent is True.
 
-    If includeProjectRoot is True the project root will be added to sys.path
-    as well.
+    If iProjectRoot is True the project root will be added to sys.path
+    as well. The same goes for iProjectRootParent
 
     This function will also make sure that the script's parent directory
     (i. e. sys.argv[0]) is on sys.path.
@@ -47,14 +51,14 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
         inclPath('maintenance')
         inclPath('core', 'core/tests')
         inclPath('core')
-        inclPath('mypackage', includeProjectRoot=False)
-        inclPath()    # this will just add the project root to sys.path
+        inclPath('mypackage', iProjectRoot=False)
+        inclPath() # this will just include the project root and its parent
 
     """
 
     ps = list(map(Path, dirs))
 
-    needProjectRoot = includeProjectRoot
+    needProjectRoot = iProjectRoot or iProjectRootParent
     for p in ps:
         if not p.is_absolute(): needProjectRoot = True
 
@@ -81,7 +85,7 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
 
             if projectRoot: break
 
-        if not projectRoot: raise Exception('Could not find the project root directory. Either mark it with a .project_root placeholder file or call inclPath() with includeProjectRoot=False')
+        if not projectRoot: raise Exception('Could not find the project root directory. Either mark it with a .project_root placeholder file or call inclPath() with iProjectRoot=False')
 
     existingPaths = set(str(Path(s).resolve()) for s in sys.path)
     pathsToAdd = {}  # format:  path_string: order_int
@@ -95,7 +99,8 @@ def inclPath(*dirs, includeProjectRoot=True, checkDirExistence=True):
     addPathIfNew(Path(sys.argv[0]).resolve().parent)
 
     # add the project root
-    if includeProjectRoot: addPathIfNew(projectRoot)
+    if iProjectRoot: addPathIfNew(projectRoot)
+    if iProjectRootParent: addPathIfNew(projectRoot.parent)
 
     # add unique paths from dirs
     for p in ps:

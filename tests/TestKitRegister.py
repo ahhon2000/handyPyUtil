@@ -71,4 +71,5 @@ class TestKitRegister:
                 print(f"\tfailed: {e}")
 
         if success:
-            shutil.rmtree(TESTKIT_REGISTER_DIR)
+            if TESTKIT_REGISTER_DIR.exists():
+                shutil.rmtree(TESTKIT_REGISTER_DIR)
