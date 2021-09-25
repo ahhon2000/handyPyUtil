@@ -26,25 +26,32 @@ class TestKitRegister:
 
             yield tk
 
-
-    def preserve(self, tk):
-        b = pickle.dumps(tk)
-
-        fn = None
-        if tk.tmpDir:
-            fn = f'{tk.tmpDir.name}'
-        else:
-            sec = round(time.time())
-            rnds = genRandomStr(10)
-            fn = f'{sec}.{rnds}'
-
-        fn = re.sub(r'^[.]+', '', fn)
-        fn = f'{PRESERVED_PREFIX}.{fn}.{PRESERVED_SUFFIX}'
+    def getPreservedTKFile(self, tk, genRandom=False):
+        def fileFromBasename(fnb):
+            fnb = re.sub(r'^[.]+', '', fnb)
+            fn = f'{PRESERVED_PREFIX}.{fnb}.{PRESERVED_SUFFIX}'
+            return TESTKIT_REGISTER_DIR / fn
 
         TESTKIT_REGISTER_DIR.mkdir(exist_ok=True)
 
-        f = TESTKIT_REGISTER_DIR / fn
-        if f.exists(): raise Exception(f'{f} exists')
+        retf = None
+        if genRandom:
+            sec = round(time.time())
+            rnds = genRandomStr(10)
+            retf = fileFromBasename(f'{sec}.{rnds}')
+        else:
+            if tk.tmpDir:
+                retf = fileFromBasename(f'{tk.tmpDir.name}')
+            else:
+                retf = self.getPreservedTKFile(tk, genRandom=True)
+
+        if retf.exists(): retf = getPreservedTKFile(tk, genRandom=True)
+
+        return retf
+
+    def preserve(self, tk):
+        f = self.getPreservedTKFile(tk)
+        b = pickle.dumps(tk)
 
         f.write_bytes(b)
 
