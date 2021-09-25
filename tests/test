@@ -12,6 +12,7 @@ import sys, os
 argp = argparse.ArgumentParser()
 
 argp.add_argument('-c', '--cleanup', action="store_true", help="clean up tmp directories")
+argp.add_argument('-n', '--nocleanup', action="store_true", help="do NOT clean up after tests")
 argp.add_argument("files", nargs='*')
 
 opt = argp.parse_args(sys.argv[1:])
@@ -41,7 +42,12 @@ def runFile(f):
         os.chdir(str(d0))
     elif re.search(r'^t_.+', f.name):
         print(f"\nRunning {f}")
-        st = subprocess.call(str(f))
+
+        cmd = [str(f)]
+        if opt.nocleanup:
+            cmd.append('--nocleanup')
+
+        st = subprocess.call(cmd)
         if st:
             failed.append(f)
 

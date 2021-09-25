@@ -10,7 +10,7 @@ from handyPyUtil.tests import TestKit
 from handyPyUtil.subproc import Pipe
 
 def doTest(case):
-    with TestKit(nocleanup=True) as tk:
+    with TestKit() as tk:
         tmpDir = tk.tmpDir
         f = tmpDir / "myScript.py"
 

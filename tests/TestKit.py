@@ -1,8 +1,9 @@
 import re
-import sys
+import sys, os
 import random
 import time
 import shutil
+import argparse
 from pathlib import Path
 
 from handyPyUtil.subproc import Pipe
@@ -17,12 +18,24 @@ class TestKit:
         nocleanup=False,
         **kwarg,
     ):
+        self.cmdl = cmdl = self._getCmdLineOpts()
+
         if not tmpDirParent.exists(): raise Exception(f'{tmpDirParent} does not exist')
 
         self.tmpDirParent = tmpDirParent
         self.tmpDirBase = tmpDirBase
-        self.nocleanup = nocleanup
         self.tmpDir = None
+
+        self.nocleanup = cmdl.nocleanup or nocleanup
+
+    def _getCmdLineOpts(self):
+        argp = argparse.ArgumentParser()
+
+        argp.add_argument('-n', '--nocleanup', action="store_true", help="do NOT clean up after the test is done")
+        argp.add_argument("arguments", nargs='*')
+
+        cmdl = argp.parse_args(sys.argv[1:])
+        return cmdl
 
     def __enter__(self):
         dt = Date("now").toText()
