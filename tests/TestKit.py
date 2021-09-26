@@ -5,6 +5,7 @@ import time
 import shutil
 import argparse
 from pathlib import Path
+from multiprocessing import Process
 
 from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
@@ -27,6 +28,8 @@ class TestKit:
         self.tmpDir = None
 
         self.nocleanup = cmdl.nocleanup or nocleanup
+
+        self.processes = {}  # format: pid: process
 
     def _getCmdLineOpts(self):
         argp = argparse.ArgumentParser()
@@ -60,9 +63,34 @@ class TestKit:
             tkr.preserve(self)
             print(f'we have kept the tmp dir: {tmpDir}')
         else:
-            if tmpDir.exists(): shutil.rmtree(tmpDir)
+            self.cleanup()
+
+    def forkProcess(self, target, args=(), kwargs={}, **pkwarg):
+        """Fork a process and kill it after the `with' clause
+
+        The process will be added to this object's `processes' dictionary with
+        its pid as the key.
+
+        Additional keyword arguments can be given to the Process constructor
+        as pkwarg.
+        """
+
+        ps = self.processes
+
+        p = Process(target=target, args=args, kwargs=kwargs, **pkwarg)
+        ps[p.pid] = p
+        p.start()
+
+        return p
+
+    def _cleanupProcesses(self):
+        ps = self.processes
+        for pid, p in ps.items():
+            p.kill()
 
     def cleanup(self, after_nocleanup=False):
+        self._cleanupProcesses()
+
         tmpDir = self.tmpDir
         if tmpDir and tmpDir.exists():
             shutil.rmtree(tmpDir)

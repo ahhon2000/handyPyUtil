@@ -7,7 +7,7 @@ PROJECT_ROOT_PLACEHOLDER = '.project_root'
 
 def inclPath(*dirs,
     iProjectRoot = True,
-    iProjectRootParent = True,
+    iProjectRootParent = False,
     checkDirExistence = True,
 ):
     """Add each directory in dirs to sys.path, unless it is already there.
