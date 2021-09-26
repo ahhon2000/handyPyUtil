@@ -1,6 +1,7 @@
 from pathlib import Path
 import logging
 import logging.handlers
+import sys
 
 DFLT_MAX_BYTES = 10 * 1024**2
 DFLT_BACKUP_COUNT = 3
@@ -44,3 +45,20 @@ def StdLogger(name, dirpath,
     for obj in [logger] + handlers: obj.setLevel(level)
 
     return logger
+
+def addStdLogger(obj, default=None, debug=False, objattr='logger'):
+    """Set obj.logger to a standard logger or default if provided
+
+    If objattr is given use it as the attribute name instead of `logger'
+    """
+
+    l = default
+    if not l:
+        n = type(obj).__name__
+        d = Path(sys.argv[0]).parent
+        level = logging.DEBUG if debug else logging.WARNING
+        l = StdLogger(n, d, level=level)
+
+    setattr(obj, objattr, l)
+
+    return l

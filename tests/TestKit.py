@@ -10,6 +10,7 @@ from multiprocessing import Process
 from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
+from handyPyUtil.loggers import addStdLogger
 from .TestKitRegister import TestKitRegister
 
 class TestKit:
@@ -17,8 +18,11 @@ class TestKit:
         tmpDirParent = Path('/tmp'),
         tmpDirBase = ".handyTest",
         nocleanup=False,
+        logger = None,
         **kwarg,
     ):
+        addStdLogger(self, default=logger, debug=True)
+
         self.cmdl = cmdl = self._getCmdLineOpts()
 
         if not tmpDirParent.exists(): raise Exception(f'{tmpDirParent} does not exist')
@@ -61,7 +65,7 @@ class TestKit:
         if self.nocleanup:
             tkr = TestKitRegister()
             tkr.preserve(self)
-            print(f'we have kept the tmp dir: {tmpDir}')
+            self.logger.info(f'we have kept the tmp dir: {tmpDir}')
         else:
             self.cleanup()
 
