@@ -9,8 +9,9 @@
 
         2. Put the following lines at the top of the script:
 
-from pathlib import Path as P; E=P.exists;R=P.resolve; l=R(P(__file__)).parents
-with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
+try: from pathlib import Path as P; R = P.resolve; E = P.exists; \
+    L = lambda p: p / 'cfg.py'; F = R(P(__file__)); import handyPyUtil
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
         This will search for the first occurrence of cfg.py from the script's
         directory and above. Once found, cfg.py will be resolved for symlinks
@@ -34,19 +35,10 @@ def init():
     from pathlib import Path
     import sys
     import os
-    import psutil
 
-    cfgPath = None
-    for fh in sorted(
-        psutil.Process().open_files(),
-        reverse=True, key=lambda fh: fh.fd,
-    ):
-        f = Path(fh.path).resolve()
-        if f.name == 'cfg.py'  and  (f.parent / '.this_is_handy').exists():
-            cfgPath, cfgfh = f, fh
-            break
-
-    if not cfgPath: raise ImportError(f'cannot locate the Handy cfg file')
+    cfgPath = Path(O.name).resolve()
+    if cfgPath.name != 'cfg.py': raise Exception(f"the symlink does not lead to handyPyUtil's cfg.py; path={cfgPath}")
+    if not (cfgPath.parent / '.this_is_handy').exists(): raise Exception(f"the symlink does not lead to handyPyUtil")
 
     handyPath = cfgPath.parent
 

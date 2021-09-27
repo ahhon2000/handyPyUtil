@@ -2,7 +2,7 @@
 from pathlib import Path
 cfgDir = Path(__file__).resolve().parent.parent
 cfgFile = cfgDir/ 'cfg.py'
-with open(str(cfgFile)) as _: exec(_.read())
+with open(str(cfgFile)) as O: exec(O.read())
 
 import argparse
 import re
