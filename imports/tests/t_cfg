@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import re
 from pathlib import Path
 cfgDir = Path(__file__).resolve().parent.parent.parent
 cfgFile = cfgDir/ 'cfg.py'
@@ -47,13 +48,11 @@ import handyPyUtil
         else:
             assert not p.status, msg
 
-
-boilerplate = lambda cfgLinkName: f"""
-try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
-    L = lambda p: p / '{cfgLinkName}'; from handyPyUtil import inclPath
-except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
-"""
-
+# Load the standard boilerplate
+bpltFile = cfgDir / 'boilerplate_for_scripts'
+assert bpltFile.exists()
+bpltTmplt = re.sub(r'cfg.py', '{cfgLinkName}',bpltFile.read_text())
+bplt = lambda cfgLinkName:  bpltTmplt.format(cfgLinkName=cfgLinkName)
 
 cases = [
     {
@@ -64,17 +63,17 @@ with open("{str(cfgFile)}") as O: exec(O.read())
 """,
     }, {
         'cfgLinkName': "cfg.py",
-        'importCode': boilerplate('cfg.py'),
+        'importCode': bplt('cfg.py'),
     }, {
         'cfgLinkName': "my_cfg_link.py",
-        'importCode': boilerplate('my_cfg_link.py'),
+        'importCode': bplt('my_cfg_link.py'),
     }, {
         'cfgLinkName': None,
-        'importCode': boilerplate('cfg.py'),
+        'importCode': bplt('cfg.py'),
         'mustFail': True,
     }, {
         'cfgLinkName': None,
-        'importCode': boilerplate('cfg.py'),
+        'importCode': bplt('cfg.py'),
         'env': {'PYTHONPATH': f'{cfgDir.parent}'},
         'mustFail': False,
     },

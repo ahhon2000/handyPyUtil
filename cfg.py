@@ -7,21 +7,20 @@
         anywhere in its parent directories. The link filename need not be
         `cfg.py' but it must be the same as in the next step.
 
-        2. Put the following lines at the top of the script:
+        2. Copy the contents of handyPyUtil/boilerplate_for_scripts and
+        place it at the top of the script. It's just a few lines.
 
-try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
-    L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
-except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
-
-        This will search for the first occurrence of cfg.py from the script's
-        directory and above. Once found, cfg.py will be resolved for symlinks
-        to detect the location of handyPyUtil.
-
-        The path for locating handyPyUtil will be added to sys.path, along with
-        the script's parent directory.
+        First, they will attempt to import handyPyUtil normally, in case
+        Python already knows where to look for handyPyUtil (e. g. from the
+        environment). On failure, a search will be performed for
+        the first occurrence of cfg.py, starting from the script's directory
+        and above. Once found, cfg.py will be resolved for symlinks to detect
+        the location of handyPyUtil. The path for locating handyPyUtil will be
+        added to sys.path, along with the script's parent directory.
 
         3. [OPTIONAL] Add paths to sys.path with inclPath(), which at this point
-        has been automatically imported by cfg.py:
+        has been automatically imported by the boilerplate code from
+        the previous step:
 
             inclPath('maintenance/tests', 'core')
 
