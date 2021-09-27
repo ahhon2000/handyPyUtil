@@ -2,7 +2,7 @@ import subprocess
 
 class Pipe:
 
-	def __init__(self, cmd, stdin=""):
+	def __init__(self, cmd, stdin="", **popenKwarg):
 		"""Run command cmd given in the list form piping stdin to it
 
 		stdin is a string
@@ -24,6 +24,7 @@ class Pipe:
 			stdin=subprocess.PIPE,
 			stdout=subprocess.PIPE,
 			stderr=subprocess.PIPE,
+            **popenKwarg,
 		)
 
 		(stdout, stderr) = p.communicate(stdin.encode())

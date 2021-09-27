@@ -35,10 +35,24 @@ import subfile
 import handyPyUtil
 """)
 
-        p = Pipe(['python3', str(f)])
+        env = case.get('env')
+
+        p = Pipe(['python3', str(f)], env=env)
         if p.status:
             print(p.stderr)
-        assert not p.status
+
+        msg = f"case: {case}"
+        if case.get('mustFail'):
+            assert p.status, msg
+        else:
+            assert not p.status, msg
+
+
+boilerplate = lambda cfgLinkName: f"""
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / '{cfgLinkName}'; from handyPyUtil import inclPath
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+"""
 
 
 cases = [
@@ -50,18 +64,19 @@ with open("{str(cfgFile)}") as O: exec(O.read())
 """,
     }, {
         'cfgLinkName': "cfg.py",
-        'importCode': f"""
-try: from pathlib import Path as P; R = P.resolve; E = P.exists; \
-    L = lambda p: p / 'cfg.py'; F = R(P(__file__)); import handyPyUtil
-except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
-""",
+        'importCode': boilerplate('cfg.py'),
     }, {
         'cfgLinkName': "my_cfg_link.py",
-        'importCode': f"""
-try: from pathlib import Path as P; R = P.resolve; E = P.exists; \
-    L = lambda p: p / 'my_cfg_link.py'; F = R(P(__file__)); import handyPyUtil
-except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
-""",
+        'importCode': boilerplate('my_cfg_link.py'),
+    }, {
+        'cfgLinkName': None,
+        'importCode': boilerplate('cfg.py'),
+        'mustFail': True,
+    }, {
+        'cfgLinkName': None,
+        'importCode': boilerplate('cfg.py'),
+        'env': {'PYTHONPATH': f'{cfgDir.parent}'},
+        'mustFail': False,
     },
 ]
 

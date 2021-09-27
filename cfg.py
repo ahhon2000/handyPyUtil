@@ -9,8 +9,8 @@
 
         2. Put the following lines at the top of the script:
 
-try: from pathlib import Path as P; R = P.resolve; E = P.exists; \
-    L = lambda p: p / 'cfg.py'; F = R(P(__file__)); import handyPyUtil
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
 except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
         This will search for the first occurrence of cfg.py from the script's
