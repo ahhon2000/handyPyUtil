@@ -91,6 +91,7 @@ class TestKit:
         ps = self.processes
         for pid, p in ps.items():
             p.kill()
+        ps.clear()
 
     def cleanup(self, after_nocleanup=False):
         self._cleanupProcesses()
