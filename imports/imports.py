@@ -7,19 +7,45 @@ import importlib.util
 PROJECT_ROOT_PLACEHOLDER = '.project_root'
 
 def importByPath(p, name=None):
-    if not name: name = p.stem
+    """Import a module or package by its path
+
+    IMPORTANT!!!
+    Normally, the optional `name' argument should NOT be used, unless you
+    need to explicitly pass on something special to spec_from_file_location()
+    """
+    
+    p = Path(p).resolve()
+    if p.is_dir():
+        p = p / '__init__.py'
+        if not p.exists(): raise ImportError("directory {p.parent} doesn't seem to be a package")
+
+    if not name:
+        parts = []
+        if p.name != '__init__.py':
+            parts.append(p.stem)
+
+        for d in p.parents:
+            inif = d / '__init__.py'
+            if inif.exists():
+                parts.append(d.name)
+
+        name = ".".join(reversed(parts))
+
+    if not name: raise ImportError('could not determine the module name')
 
     spec = importlib.util.spec_from_file_location(name, str(p))
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
 
+    return mod
+
 
 def inclPath(*dirs,
     iProjectRoot = True,
     iProjectRootParent = False,
     checkDirExistence = True,
-    importRootPackage = True,
+    importTopLvlPkg = True,
 ):
     """Add each directory in dirs to sys.path, unless it is already there.
 
@@ -135,10 +161,10 @@ def inclPath(*dirs,
 
     sys.path.extend(ss)
 
-    if importRootPackage and projectRoot:
+    if importTopLvlPkg and projectRoot:
         iniFile = projectRoot / '__init__.py'
         if iniFile.exists():
-            importByPath(iniFile, name=projectRoot.name)
+            importByPath(iniFile)
             pass
 
 def importClassesFromPackage(packageInitFile):
@@ -157,16 +183,21 @@ def importClassesFromPackage(packageInitFile):
 
     """
 
+    iniFile = Path(packageInitFile).resolve()
+    iniDir = iniFile.parent
+
     ls = []
-    for f in Path(packageInitFile).resolve().parent.iterdir():
+    for f in iniDir.iterdir():
         if f.suffix != '.py': continue
         if not f.is_file()  or  not f.stem[0].isupper(): continue
         modname = f.stem
 
-        ls.append(f"from . import {modname} as tmpmod")
         ls.append(f"""
+from handyPyUtil.imports import importByPath
+tmpmod = importByPath('{f}')
+
 if hasattr(tmpmod, '{modname}'):
-    from .{modname} import {modname}
+    {modname} = tmpmod.{modname}
 """[1:-1])
 
     scr = "\n".join(ls)

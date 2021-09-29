@@ -11,6 +11,8 @@ from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
 from handyPyUtil.loggers import addStdLogger
+
+from handyPyUtil.imports import importByPath
 from .TestKitRegister import TestKitRegister
 
 class TestKit:
