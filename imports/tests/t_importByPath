@@ -1,0 +1,59 @@
+#!/usr/bin/python3
+import re
+from pathlib import Path
+cfgDir = Path(__file__).resolve().parent.parent.parent
+cfgFile = cfgDir/ 'cfg.py'
+with open(str(cfgFile)) as O: exec(O.read())
+
+from pathlib import Path
+
+from handyPyUtil.tests import TestKit
+from handyPyUtil.subproc import Pipe
+
+bpltFile = cfgDir / 'boilerplate_for_scripts'
+bplt = bpltFile.read_text()
+
+with TestKit() as tk:
+    tmpDir = tk.tmpDir
+
+    mypkgDir = tmpDir / 'mypkg'
+    mod1Dir = mypkgDir / 'mod1'
+    mod2Dir = mod1Dir / 'mod2'
+    mod2Dir.mkdir(parents=True, exist_ok=True)
+
+    for d in (mypkgDir, mod1Dir, mod2Dir):
+        inif = d / ('__init__.py')
+        inif.touch()
+
+    # create a symlink to handyPyUtil's cfg.py
+    (mypkgDir / 'cfg.py').symlink_to(cfgFile)
+
+    # create .project_root
+    (mypkgDir / '.project_root').touch()
+
+    # create mypkg/funcs.py
+    tstMsg = 'imports work!'
+    funcsFile = mypkgDir / 'funcs.py'
+    funcsFile.write_text(f"""
+def f():
+    return '{tstMsg}'
+""")
+
+    # create mypkg/mod1/mod2/script.py
+    scr = mod2Dir / 'script.py'
+    scr.write_text(f"""
+{bplt}
+
+inclPath()
+
+from mypkg.funcs import f
+print(f())
+""")
+
+    # Execute the script
+    p = Pipe(['python3', str(scr)])
+    errMsg = f"the script {scr} failed with status={p.status}:\n{p.stderr}"
+    assert p.status == 0, errMsg
+
+    tstMsg1 = p.stdout.split("\n")[0].strip()
+    assert tstMsg1 == tstMsg, f"tstMsg1={tstMsg1};  tstMsg={tstMsg}"

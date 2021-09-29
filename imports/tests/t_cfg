@@ -5,8 +5,6 @@ cfgDir = Path(__file__).resolve().parent.parent.parent
 cfgFile = cfgDir/ 'cfg.py'
 with open(str(cfgFile)) as O: exec(O.read())
 
-import subprocess
-
 from handyPyUtil.tests import TestKit
 from handyPyUtil.subproc import Pipe
 

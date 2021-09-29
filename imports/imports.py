@@ -2,13 +2,24 @@ import sys, os
 from pathlib import Path
 from itertools import chain
 import traceback
+import importlib.util
 
 PROJECT_ROOT_PLACEHOLDER = '.project_root'
+
+def importByPath(p, name=None):
+    if not name: name = p.stem
+
+    spec = importlib.util.spec_from_file_location(name, str(p))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+
 
 def inclPath(*dirs,
     iProjectRoot = True,
     iProjectRootParent = False,
     checkDirExistence = True,
+    importRootPackage = True,
 ):
     """Add each directory in dirs to sys.path, unless it is already there.
 
@@ -124,6 +135,11 @@ def inclPath(*dirs,
 
     sys.path.extend(ss)
 
+    if importRootPackage and projectRoot:
+        iniFile = projectRoot / '__init__.py'
+        if iniFile.exists():
+            importByPath(iniFile, name=projectRoot.name)
+            pass
 
 def importClassesFromPackage(packageInitFile):
     """Import classes from `class files'
