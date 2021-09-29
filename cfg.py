@@ -15,9 +15,10 @@
         PYTHONPATH environment variable). On failure, a search will be
         performed for the first occurrence of cfg.py, starting from the
         script's directory and above. Once found, cfg.py will be resolved for
-        symlinks to detect the location of handyPyUtil. The path for locating
-        handyPyUtil will be added to sys.path, along with the script's parent
-        directory.
+        symlinks to detect the location of handyPyUtil and import it.
+
+        The script's parent directory will be added to sys.path, unless it is
+        already there.
 
         3. [OPTIONAL] Add paths to sys.path with inclPath(), which at this point
         has been automatically imported by the boilerplate code from
@@ -27,7 +28,7 @@
 
         See inclPath()'s comments for its usage and more examples.
 
-        NOTE: Neither cfg.py nor inclPath will add a path to sys.path if it
+        NOTE: Neither cfg.py nor inclPath() will add a path to sys.path if it
         is already there.
 """
 
@@ -35,6 +36,7 @@ def init():
     from pathlib import Path
     import sys
     import os
+    import importlib.util
 
     cfgPath = Path(O.name).resolve()
     if cfgPath.name != 'cfg.py': raise Exception(f"the symlink does not lead to handyPyUtil's cfg.py; path={cfgPath}")
@@ -42,15 +44,13 @@ def init():
 
     handyPath = cfgPath.parent
 
-    if not next(
-        (
-            p for p in (
-                Path(s).resolve() for s in sys.path
-            ) if p.exists() and p.samefile(handyPath.parent)
-        ),
-        None,
-    ):
-        sys.path.append(str(handyPath.parent))
+    # import handy
+    spec = importlib.util.spec_from_file_location(
+        'handyPyUtil', str(handyPath / '__init__.py'),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
 
     from handyPyUtil.imports import inclPath, HandyCfg
 

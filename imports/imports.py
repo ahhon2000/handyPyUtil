@@ -47,11 +47,11 @@ def inclPath(*dirs,
     the top of your script. Follow the steps described in the comments in
     cfg.py.
 
-    `Sourcing' cfg.py in that manner will automatically import inclPath(),
+    `Sourcing' cfg.py in this manner will automatically import inclPath(),
     which allows for including paths relative to the project root.
 
     Even without any calls to inclPath(), cfg.py will extend sys.path with
-    the path for locating handyPyUtil and the script's parent directory.
+    the script's parent directory, unless it is already there.
 
     2. You can always import inclPath normally:
 
@@ -63,7 +63,7 @@ def inclPath(*dirs,
         inclPath('core', 'core/tests')
         inclPath('core')
         inclPath('mypackage', iProjectRoot=False)
-        inclPath() # this will just include the project root and its parent
+        inclPath() # this will just include the project root
 
     """
 
