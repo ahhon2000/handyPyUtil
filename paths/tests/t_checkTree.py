@@ -101,4 +101,5 @@ cases = [
     },
 ]
 
-for case in cases: doTest(case)
+if __name__ == '__main__':
+    for case in cases: doTest(case)

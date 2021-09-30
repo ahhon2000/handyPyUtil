@@ -1,0 +1,125 @@
+#!/usr/bin/python3
+from pathlib import Path
+cfgDir = Path(__file__).resolve().parent.parent.parent
+cfgFile = cfgDir/ 'cfg.py'
+with open(str(cfgFile)) as O: exec(O.read())
+
+from handyPyUtil.paths import dirIsEmpty, createTree, TreeDictError
+from handyPyUtil.tests import TestKit
+
+def checkResult(case, tk, tree, ptreeAbsPath=None):
+    topLvl = not ptreeAbsPath
+    if not ptreeAbsPath: ptreeAbsPath = tk.tmpDir
+
+    assert ptreeAbsPath.is_absolute()
+    assert ptreeAbsPath.exists()
+
+    tree = {p: {} for p in tree} if isinstance(tree, set) else tree
+    for p, c in tree.items():
+        assert isinstance(p, (set, dict, str, Path)), f"type(p) = {type(p)}"
+        assert isinstance(c, (set, dict, str, bytes))
+
+        p = Path(p)
+        if topLvl:
+            assert p.is_absolute(), f"case: {case}"
+        else:
+            assert not p.is_absolute(), f"case: {case}\ntree = {tree}\npath={p}"
+
+        fp = ptreeAbsPath / p
+        assert fp.exists()
+
+        isDir = not isinstance(c, (str, bytes))
+        if isDir:
+            assert fp.is_dir()
+            assert isinstance(c, (set, dict))
+
+            checkResult(case, tk, c, ptreeAbsPath=fp)
+        else:
+            assert fp.is_file()
+            if isinstance(c, str):
+                assert fp.read_text() == c
+            else:
+                assert fp.read_bytes() == c
+
+def doTest(case):
+    with TestKit() as tk:
+        tmpDir = tk.tmpDir
+        assert dirIsEmpty(tmpDir)
+
+        tree = {
+            tmpDir: case['tree'],
+        }
+        mustFail = case.get('mustFail', False)
+
+        if mustFail:
+            failed = False
+            try:
+                createTree(tree)
+            except TreeDictError:
+                failed = True
+            assert failed
+            assert dirIsEmpty(tmpDir)
+        else:
+            createTree(tree)
+            checkResult(case, tk, tree)
+
+            createTree(tree)
+            checkResult(case, tk, tree)
+
+
+cases = [
+    {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('file.txt'): "This is my story",
+                'subsubdir': {
+                    'bytesFile': bytes('Some bytes', encoding='utf8'),
+                    Path('3xsubdir/bytesFile2'): bytes('Some bytes', encoding='utf8'),
+                },
+            },
+        },
+    },
+    {
+        'tree': {},
+    }, {
+        'tree': dict(),
+    }, {
+        'tree': {
+            'dir': {},
+        },
+    }, {
+        'tree': {
+            'dir': {'file.txt': "This is my story"},
+        },
+    }, {
+        'tree': {
+            'dir': {'file.txt': "This is my story"},
+        },
+    }, {
+        'tree': {
+            'dir/subdir': {
+                'file.txt': "This is my story",
+                'subsubdir': {},
+            },
+        },
+    }, {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('file.txt'): "This is my story",
+                'subsubdir': {},
+            },
+        },
+    },
+    {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('file.txt'): "This is my story",
+                'subsubdir': {3},
+            },
+        },
+        'mustFail': True,
+    },
+]
+
+
+for case in cases: doTest(case)

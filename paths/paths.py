@@ -7,6 +7,15 @@ TreeNode = namedtuple('TreeNode', (
     'path', 'fullpath', 'contents', 'parentNode',
 ))
 
+def dirIsEmpty(d):
+    "Return True iff directory d is empty"
+
+    d = Path(d)
+    if not d.exists(): raise Exception(f'{d} does not exist')
+    if not d.is_dir(): raise Exception(f'{d} is not a directory')
+
+    return not bool(next(d.iterdir(), None))
+
 def traverseTree(tree, parentNode=None,
     onPath=None, onNode=None, onDir=None, onFile=None
 ):
@@ -105,11 +114,11 @@ def createTree(tree):
 
     def onDir(n):
         p = n.fullpath
-        p.makedir(exist_ok=True)
+        p.mkdir(exist_ok=True)
 
     def onFile(n):
         p = n.fullpath
-        if isinstance(c, str): p.write_text(c)
-        else: p.write_bytes(c)
+        if isinstance(n.contents, str): p.write_text(n.contents)
+        else: p.write_bytes(n.contents)
 
     traverseTree(tree, onNode=onNode, onDir=onDir, onFile=onFile)
