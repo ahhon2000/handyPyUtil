@@ -30,6 +30,9 @@
 
         NOTE: Neither cfg.py nor inclPath() will add a path to sys.path if it
         is already there.
+
+        4. [OPTIONAL] Include packages/modules by their path with importByPath()
+        This function is automatically imported by the boilerplate.
 """
 
 afterInit = """
@@ -54,7 +57,7 @@ def afterInit():
         __package__ = ipr.get('specName')
 
 afterInit()
-from handyPyUtil.imports import inclPath
+from handyPyUtil.imports import importByPath, inclPath
 """
 
 def init():
@@ -87,4 +90,4 @@ if __name__ == '__main__':
     HANDY_CFG = init()
     del init, afterInit
 
-from handyPyUtil.imports import inclPath
+from handyPyUtil.imports import importByPath, inclPath
