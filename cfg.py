@@ -32,26 +32,10 @@
         is already there.
 """
 
-def init():
+afterInit = """
+def afterInit():
+    import sys, os
     from pathlib import Path
-    import sys
-    import os
-    import importlib.util
-
-    cfgPath = Path(O.name).resolve()
-    if cfgPath.name != 'cfg.py': raise Exception(f"the symlink does not lead to handyPyUtil's cfg.py; path={cfgPath}")
-    if not (cfgPath.parent / '.this_is_handy').exists(): raise Exception(f"the symlink does not lead to handyPyUtil")
-
-    handyPath = cfgPath.parent
-
-    # import handy
-    spec = importlib.util.spec_from_file_location(
-        'handyPyUtil', str(handyPath / '__init__.py'),
-    )
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-
     from handyPyUtil.imports import inclPath, HandyCfg
 
     # add the script's parent directory to sys.path
@@ -69,11 +53,38 @@ def init():
         global __package__
         __package__ = ipr.get('specName')
 
-    handCfg = HandyCfg(handyPath)
+afterInit()
+from handyPyUtil.imports import inclPath
+"""
 
-    return handyPath
+def init():
+    from pathlib import Path
+    import sys, os
+    import importlib.util
 
-HANDY_CFG = init()
-del init
+    cfgPath = Path(O.name).resolve()
+    if cfgPath.name != 'cfg.py': raise Exception(f"the symlink does not lead to handyPyUtil's cfg.py; path={cfgPath}")
+    if not (cfgPath.parent / '.this_is_handy').exists(): raise Exception(f"the symlink does not lead to handyPyUtil")
+
+    handyPath = cfgPath.parent
+
+    # import handy
+    spec = importlib.util.spec_from_file_location(
+        'handyPyUtil', str(handyPath / '__init__.py'),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+
+    exec(afterInit)
+
+    from handyPyUtil.imports import HandyCfg
+    handyCfg = HandyCfg(handyPath)
+
+    return handyCfg
+
+if __name__ == '__main__':
+    HANDY_CFG = init()
+    del init, afterInit
 
 from handyPyUtil.imports import inclPath

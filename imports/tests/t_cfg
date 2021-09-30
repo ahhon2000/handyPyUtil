@@ -13,36 +13,36 @@ from handyPyUtil.subproc import Pipe
 def doTest(case):
     with TestKit() as tk:
         tmpDir = tk.tmpDir
-        f = tmpDir / "myScript.py"
-
-        subdir = tmpDir / 'subdir'
-        subdir.mkdir()
-
-        (tmpDir / '.project_root').write_text("\n")
-        (subdir / 'subfile.py').write_text("\n")
-
-        # create a symlink to handyPyUtil cfg.py in tmpDir
-        cfgLinkName = case['cfgLinkName']
-        if cfgLinkName:
-            l = tmpDir / cfgLinkName
-            l.symlink_to(cfgFile)
-
-        f.write_text(f"""
+        tk.createTree({
+            'mypkg': {
+                '__init__.py': "",
+                '.project_root': "",
+                'myScript.py': f"""
 {case['importCode']}
 
 inclPath('subdir')
 
 import subfile
 import handyPyUtil
-""")
+"""[1:-1],
+                'subdir': {
+                    'subfile.py': "",
+                },
+            },
+        })
 
+        # create a symlink to handyPyUtil cfg.py in the package root dir
+        cfgLinkName = case['cfgLinkName']
+        if cfgLinkName:
+            l = tmpDir / 'mypkg' / cfgLinkName
+            l.symlink_to(cfgFile)
+
+        f = tmpDir / 'mypkg/myScript.py'
         env = case.get('env')
 
         p = Pipe(['python3', str(f)], env=env)
-        if p.status:
-            print(p.stderr)
 
-        msg = f"case: {case}"
+        msg = f"case failed\nerror message:\n{p.stderr}\ncase:\n{case}"
         if case.get('mustFail'):
             assert p.status, msg
         else:
