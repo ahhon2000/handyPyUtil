@@ -5,7 +5,7 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 from math import isclose
 
-from handyPyUtil.dates.Date import (
+from ..Date import (
     Date,
     txtDateToSec, txtDateToSec_14, txtDate14Midnight, validDate14,
 )
