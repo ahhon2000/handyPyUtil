@@ -11,6 +11,7 @@ from handyPyUtil.subproc import Pipe
 from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
 from handyPyUtil.loggers import addStdLogger
+from handyPyUtil.paths import createTree
 
 from handyPyUtil.imports import importByPath
 from .TestKitRegister import TestKitRegister
@@ -101,3 +102,16 @@ class TestKit:
         tmpDir = self.tmpDir
         if tmpDir and tmpDir.exists():
             shutil.rmtree(tmpDir)
+
+    def createTree(self, tree):
+        """Create a tree in tmpDir
+
+        See paths.createTree() for the format of the argument.
+
+        NOTE: The argument to this class's createTree() can only contain
+        relative paths.
+        """
+
+        tmpDir = self.tmpDir
+        tree2 = {tmpDir: tree}
+        createTree(tree2)
