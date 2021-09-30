@@ -22,22 +22,32 @@ with TestKit() as tk:
             'cfg.py': cfgFile,
             'client': {
                 '__init__.py': "",
+                'funcs.py': "def f(): pass",
             },
             'server': {
                 '__init__.py': "",
             },
             'scripts': {
                 '__init__.py': "",
-                "myscript": f"""
+                "myscript.py": f"""
 {bplt}
-"""
+
+from ..client.funcs import f
+f()
+"""[1:-1],
+                "run_myscript.py": f""",
+{bplt}
+
+import mypkg.scripts.myscript
+"""[1:-1],
             },
         },
     })
 
-    scr = tmpDir / 'mypkg/scripts/myscript'
-
-    # Execute the script
-    p = Pipe(['python3', str(scr)])
-    errMsg = f"the script {scr} failed with status={p.status}:\n{p.stderr}"
-    assert p.status == 0, errMsg
+    for scr in map(lambda s: tmpDir / f'mypkg/scripts/{s}.py', (
+        'run_myscript',
+        'myscript',
+    )):
+        p = Pipe(['python3', str(scr)])
+        errMsg = f"the script {scr} failed with status={p.status}:\n{p.stdout}\n{p.stderr}"
+        assert p.status == 0, errMsg

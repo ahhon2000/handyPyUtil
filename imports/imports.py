@@ -28,6 +28,8 @@ def importByPath(p, name=None):
             inif = d / '__init__.py'
             if inif.exists():
                 parts.append(d.name)
+            else:
+                break
 
         name = ".".join(reversed(parts))
 
@@ -41,8 +43,43 @@ def importByPath(p, name=None):
     return mod
 
 
+def importSuperPackage(p):
+    """Import the top-level package containing path p somewhere in its hierarchy
+    """
+
+    if not p.exists(): raise ImportError(f'file {p} does not exist')
+    p = p.resolve()
+
+    if p.is_dir():
+        inif = p / '__init__.py'
+        if inif.exists():
+            p = inif
+
+    superPkgPath = None
+    specNameParts = []
+    for d in p.parents:
+        inif = d / '__init__.py'
+        if inif.exists():
+            superPkgPath = d
+            specNameParts.append(d.name)
+        else:
+            break
+
+    if not superPkgPath: raise ImportError(f'no superpackage found for {p}')
+
+    mod = importByPath(superPkgPath)
+    specName = ".".join(reversed(specNameParts)) if specNameParts else None
+
+    spr = {
+        'specName': specName,
+        'superPackage': mod,
+    }
+
+    return spr
+
+
 def inclPath(*dirs,
-    iProjectRoot = True,
+    iProjectRoot = False,
     iProjectRootParent = False,
     checkDirExistence = True,
     importTopLvlPkg = True,
@@ -89,7 +126,7 @@ def inclPath(*dirs,
         inclPath('core', 'core/tests')
         inclPath('core')
         inclPath('mypackage', iProjectRoot=False)
-        inclPath() # this will just include the project root
+        inclPath()
 
     """
 
@@ -133,7 +170,9 @@ def inclPath(*dirs,
             pathsToAdd[s] = len(pathsToAdd)
 
     # add the script's parent
-    addPathIfNew(Path(sys.argv[0]).resolve().parent)
+    scr = Path(sys.argv[0]).resolve()
+    scrDir = scr.parent
+    addPathIfNew(scrDir)
 
     # add the project root
     if iProjectRoot: addPathIfNew(projectRoot)
@@ -161,11 +200,15 @@ def inclPath(*dirs,
 
     sys.path.extend(ss)
 
-    if importTopLvlPkg and projectRoot:
-        iniFile = projectRoot / '__init__.py'
-        if iniFile.exists():
-            importByPath(iniFile)
-            pass
+    ipr = {}  # the object to return
+
+    # import the top-level package
+    if importTopLvlPkg:
+        spr = importSuperPackage(scr)
+        ipr['superPackage'] = spr.get('superPackage')
+        ipr['specName'] = spr.get('specName')
+
+    return ipr
 
 def importClassesFromPackage(packageInitFile):
     """Import classes from `class files'

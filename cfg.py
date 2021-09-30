@@ -10,7 +10,7 @@
         2. Copy the contents of handyPyUtil/boilerplate_for_scripts and
         place it at the top of the script. It's just a few lines.
 
-        Those lines will first attempt to import handyPyUtil normally, in case
+        These lines will first attempt to import handyPyUtil normally, in case
         Python already knows where to look for handyPyUtil (e. g., from the
         PYTHONPATH environment variable). On failure, a search will be
         performed for the first occurrence of cfg.py, starting from the
@@ -55,9 +55,19 @@ def init():
     from handyPyUtil.imports import inclPath, HandyCfg
 
     # add the script's parent directory to sys.path
-    inclPath(Path(sys.argv[0]).resolve().parent,
+    ipr = inclPath(Path(sys.argv[0]).resolve().parent,
         iProjectRoot=False, iProjectRootParent=False,
     )
+
+    # If cfg.py is executed in a script set the script's __package__ variable
+    # to the scripts parent packages, like so:
+    #
+    #   top_package.package_level1.package_level2.....script_parent_package
+    #
+    # This facilitates relative imports, which otherwise don't work in scripts
+    if __name__ == '__main__':
+        global __package__
+        __package__ = ipr.get('specName')
 
     handCfg = HandyCfg(handyPath)
 
