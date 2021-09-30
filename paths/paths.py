@@ -54,13 +54,13 @@ def checkTree(tree):
         else:
             if not n.path.is_absolute(): raise TreeDictError(f"relative top-level paths are not allowed")
 
-        if not isinstance(n.contents, (set, dict, str, bytes)): raise TreeDictError(f'the value of a tree entry can only be a dict or a str, not {type(n.contents)}')
+        if not isinstance(n.contents, (set, dict, str, bytes, Path)): raise TreeDictError(f'the contents part of a tree entry cannot be of type {type(n.contents)}')
 
     def onDir(n):
         pass
 
     def onFile(n):
-        if not isinstance(n.contents, (str, bytes)): raise TreeDictError(f'the contents of {n.fullpath} is neither a str nor bytes')
+        if not isinstance(n.contents, (str, bytes, Path)): raise TreeDictError(f'the contents of {n.fullpath} cannot be of type {type(n.contents)}')
 
     traverseTree(tree, onPath=onPath, onNode=onNode, onDir=onDir, onFile=onFile)
 
@@ -68,24 +68,35 @@ def checkTree(tree):
 def createTree(tree):
     """Create a directory structure described by set/dictionary `tree'
 
-    Each entry in argument `tree' is a path if tree is a set, or a path-contents
-    pair if it is a dict. Contents can be another tree set/dictionary or
-    a str/bytes instance representing a file's contents. For example:
+    Each entry in argument `tree' is a path p if tree is a set, or a
+    path-contents pair p: c if it is a dict.
+
+    Contents c can be another tree set/dictionary or
+    a str/bytes instance representing a file's contents. If contents is a Path
+    instance t then a symlink at path p will be created
+    pointing to t:  p -> t. The target path t can be relative or absolute.
+
+    For example:
 
         tree = {
             '/tmp/dir': {
                 'media': {'photos', 'videos'},
                 'subdir': {
                     'memoirs.txt': 'I was born in...',
+                    'a_symlink': Path('/abs/path/to/something/'),
                 },
             },
         }
 
     This structure of the `tree' argument orders to create directory
     /tmp/dir and subdirectories /tmp/dir/media, /tmp/dir/subdir.
-    The latter will contain a file named `memoirs.txt' with the specified
-    contents in it. Directory /tmp/dir/media will contain emptie directories
+
+    Directory /tmp/dir/media will contain empty directories
     photos, videos.
+
+    /tmp/dir/subdir will contain a file named `memoirs.txt' with the specified
+    contents in it. Also, a symlink to /abs/path/to/something/ will be created
+    in /tmp/dir/subdir.
 
     Paths can be strings or Path objects.
 
@@ -118,7 +129,20 @@ def createTree(tree):
 
     def onFile(n):
         p = n.fullpath
-        if isinstance(n.contents, str): p.write_text(n.contents)
-        else: p.write_bytes(n.contents)
+        c = n.contents
+        if isinstance(c, str): p.write_text(c)
+        elif isinstance(c, bytes): p.write_bytes(c)
+        elif isinstance(c, Path):
+            t = c if c.is_absolute() else p.parent / c
+            if p.is_symlink():
+                tt = p.readlink()
+                if tt != t:
+                    raise TreeDictError(f'Symlink {p} already exists and points to {tt}, not to {t}. Cannot overwrite it')
+            elif p.exists():
+                raise TreeDictError(f'{p} already exists but it is not a symlink')
+            else:
+                p.symlink_to(t)
+
+        else: raise TreeDictError('unexpected type of tree node contents: {c}')
 
     traverseTree(tree, onNode=onNode, onDir=onDir, onFile=onFile)

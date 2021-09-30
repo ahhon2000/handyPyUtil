@@ -1,0 +1,43 @@
+#!/usr/bin/python3
+import re
+from pathlib import Path
+cfgDir = Path(__file__).resolve().parent.parent.parent
+cfgFile = cfgDir/ 'cfg.py'
+with open(str(cfgFile)) as O: exec(O.read())
+
+from pathlib import Path
+
+from handyPyUtil.tests import TestKit
+from handyPyUtil.subproc import Pipe
+
+bpltFile = cfgDir / 'boilerplate_for_scripts'
+bplt = bpltFile.read_text()
+
+with TestKit() as tk:
+    tmpDir = tk.tmpDir
+
+    tk.createTree({
+        'mypkg': {
+            '__init__.py': "",
+            'cfg.py': cfgFile,
+            'client': {
+                '__init__.py': "",
+            },
+            'server': {
+                '__init__.py': "",
+            },
+            'scripts': {
+                '__init__.py': "",
+                "myscript": f"""
+{bplt}
+"""
+            },
+        },
+    })
+
+    scr = tmpDir / 'mypkg/scripts/myscript'
+
+    # Execute the script
+    p = Pipe(['python3', str(scr)])
+    errMsg = f"the script {scr} failed with status={p.status}:\n{p.stderr}"
+    assert p.status == 0, errMsg

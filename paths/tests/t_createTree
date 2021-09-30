@@ -17,7 +17,7 @@ def checkResult(case, tk, tree, ptreeAbsPath=None):
     tree = {p: {} for p in tree} if isinstance(tree, set) else tree
     for p, c in tree.items():
         assert isinstance(p, (set, dict, str, Path)), f"type(p) = {type(p)}"
-        assert isinstance(c, (set, dict, str, bytes))
+        assert isinstance(c, (set, dict, str, bytes, Path))
 
         p = Path(p)
         if topLvl:
@@ -26,20 +26,27 @@ def checkResult(case, tk, tree, ptreeAbsPath=None):
             assert not p.is_absolute(), f"case: {case}\ntree = {tree}\npath={p}"
 
         fp = ptreeAbsPath / p
-        assert fp.exists()
+        assert fp.is_symlink() or fp.exists()
 
-        isDir = not isinstance(c, (str, bytes))
+        isDir = isinstance(c, (set, dict))
         if isDir:
             assert fp.is_dir()
             assert isinstance(c, (set, dict))
 
             checkResult(case, tk, c, ptreeAbsPath=fp)
         else:
-            assert fp.is_file()
-            if isinstance(c, str):
-                assert fp.read_text() == c
+            if isinstance(c, Path):
+                assert fp.is_symlink()
+                if c.is_absolute():
+                    assert fp.readlink() == c
+                else:
+                    assert fp.readlink() == fp.parent / c
             else:
-                assert fp.read_bytes() == c
+                assert fp.is_file()
+                if isinstance(c, str):
+                    assert fp.read_text() == c
+                else:
+                    assert fp.read_bytes() == c
 
 def doTest(case):
     with TestKit() as tk:
@@ -118,6 +125,30 @@ cases = [
             },
         },
         'mustFail': True,
+    },
+    {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('symlink'): Path('/tmp/file1'),
+                'subsubdir': {},
+            },
+        },
+    },
+    {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('symlink'): Path('../'),
+                'subsubdir': {},
+            },
+        },
+    },
+    {
+        'tree': {
+            Path('dir/subdir'): {
+                Path('symlink'): Path('../nonexistent/file'),
+                'subsubdir': {},
+            },
+        },
     },
 ]
 

@@ -98,6 +98,27 @@ cases = [
                 },
             },
         },
+    }, {
+        'tree': {
+            Path('/tmp/dir/'): {
+                'diary.lnk': Path('/home/user/diary'),
+            },
+        }
+    }, {
+        'tree': {
+            Path('/tmp/dir/'): {
+                'diary.lnk': Path('home/user/diary'),
+            },
+        },
+    }, {
+        'tree': {
+            '/tmp/dir/': {
+                'subdir': {
+                    'notes.txt': "Once upon a time...",
+                    'diary': Path('/home/user/diary'),
+                },
+            },
+        }
     },
 ]
 
