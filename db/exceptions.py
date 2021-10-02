@@ -1,0 +1,1 @@
+class ExcRecordNotFound(Exception): pass

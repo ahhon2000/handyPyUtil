@@ -1,9 +1,12 @@
 import MySQLdb
 
 from .Database import DBTYPES
-from . import Database
+from . import DatabaseSQL
+from .exceptions import *
 
-class Database_mysql(Database):
+class Database_mysql(DatabaseSQL):
+    NAMED_ARG_AFFIXES = ('%(', ')s')
+
     def __init__(self,
         connect = True,
         **kwarg,  # may contain connection keyword arguments
@@ -21,10 +24,10 @@ class Database_mysql(Database):
         return self.reconnect(*arg, **kwarg):
 
     def execQuery(self, qpars):
-        q = qpars['q']
-        args = qpars['args']
+        r = qpars['request']
+        args = qpars.get('args')
         cursor = qpars['cursor']
-        cursor.execute(q, args=args)
+        cursor.execute(r, args=args)
         
     def fetchRows(self, qpars):
         # use fetchall() instead of fetchone() here because requesting
