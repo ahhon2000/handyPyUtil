@@ -9,32 +9,34 @@ class TableRow:
     indexDefs = {}   # format:  {indname: {dbtype: (col1, col2, ...)}}
     tableName = ''
 
-    def __init__(self, bindObject, fromRow=None, fromId=None, dbobj=None):
-        self.bindObject = bindObject
-        self.flgDeleted = False
+    def __init__(self, _bindObject, _fromRow=None, _fromId=None, _dbobj=None,
+        **fieldVals,
+    ):
+        self._bindObject = _bindObject
+        self._flgDeleted = False
         
-        if not dbobj:
-            for k in ('q', 'dbobj', 'db', 'database'):
-                q = getattr(bindObject, k, None)
+        if not _dbobj:
+            for k in ('q', 'dbobj', '_q', '_dbobj', 'db', 'database'):
+                q = getattr(_bindObject, k, None)
                 if q and isinstance(q, Database):
-                        dbobj = q
+                        _dbobj = q
                         break
-            if not dbobj: raise Exception(f'could not find a Database instance')
+            if not _dbobj: raise Exception(f'could not find a Database instance')
 
-        self.dbobj = self.q = q = dbobj
+        self._dbobj = self._q = q = _dbobj
 
-        if fromRow and fromId:
-            raise Exception(f'fromRow and fromId cannot be used together')
+        if _fromRow and _fromId:
+            raise Exception(f'_fromRow and _fromId cannot be used together')
 
         tbl = self.tableName
 
         fs = None
-        if fromRow:
-            fs = fromRow
-        elif fromId:
-            q.getRowById(tbl, fromId)
+        if _fromRow:
+            fs = _fromRow
+        elif _fromId:
+            q.getRowById(tbl, _fromId)
         else:
-            fs = kwarg
+            fs = fieldVals
 
         for k in fs.keys():
             if k not in self.columnDefs: raise Exception(f'table `{tbl}` does not have a column named `{k}`')
@@ -54,8 +56,6 @@ class TableRow:
 
     @classmethod
     def createTable(Cls, q):
-        for k in q.PROHIBITED_COL_NAMES:
-            raise Exception(f'"{k}" is not allowed to be used as a column name')
         q.createTable(Cls)
 
     @classmethod
@@ -63,11 +63,11 @@ class TableRow:
         q.createIndices(Cls)
 
     def save(self, commit=True):
-        self.q.saveTableRow(self, commit=commit)
+        self._q.saveTableRow(self, commit=commit)
 
     def delete(self):
-        self.q.deleteTableRow(self)
-        tableRow.flgDeleted = True
+        self._q.deleteTableRow(self)
+        tableRow._flgDeleted = True
 
     def same(self, other, abs_tol=1e-9):
         for k in self.columnDefs:

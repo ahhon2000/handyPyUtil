@@ -1,3 +1,4 @@
+import re
 import sqlite3
 
 from .Database import DBTYPES
@@ -21,3 +22,10 @@ class Database_mysql(DatabaseSQL):
 
     def createDatabase(self): pass
     def dropDatabase(self): pass
+
+    def extractNamedPlaceholders(self, request):
+        ps = []
+        for colon, p in re.findall(r'(:)(\w+)\b', request):
+            ps.append(p)
+
+        return ps

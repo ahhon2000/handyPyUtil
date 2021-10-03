@@ -1,46 +1,97 @@
 from more_itertools import nth
 
+from .Database import Database
+
 class SmartQuery:
-    def __init__(self, *arg, **qpars):
-        self.db, self.request, self.index = None, None, None
-        self.qpars = {}
+    INTERNAL_ATTR_TYPES = {
+        'db': (Database,),
+        'request': (str, bytes),
+        'index': (int, slice),
+    }
 
-        self._consumeArg(arg, qpars)
+    def __init__(self, *arg, **kwarg):
+        self._internals = {
+            'db': None, 'request': None, 'index': None,
+        }
 
-    def _consumeArg(self, arg, qpars):
+        self._positionalValues = []
+        self._kwarg = {}
+
+        self._consumeArg(arg, kwarg)
+
+    def _consumeArg(self, arg, kwarg):
         from . import Database
 
         for i, a in enumerate(arg):
-            if isinstance(a, Database):
-                if self.db is not None: raise Exception(f'the db paramater was set more than once')
-                self.db = a
-            elif isinstance(a, (str, bytes)):
-                if self.request is not None: raise Exception(f'the request was set more than once')
-                self.request = a
-            elif isinstance(a, int): 
-                if self.index is not None: raise Exception(f'the index parameter was set more than once')
-                self.index = a
-            elif isinstance(a, SmartQuery):
-                arg2 = tuple(
-                    a2 for a2 in (a.db, a.request, a.index) if a is not None
-                )
-                self._consumeArg(arg2, a.qpars)
-            elif isinstance(a, dict):
-                self.qpars.update(a)
-            else: raise Exception(f'unsupported type of positional argument {i}: {type(a)}')
+            processed_a = False
+            for k, ts in self.INTERNAL_ATTR_TYPES.items():
+                if isinstance(a, ts):
+                    self._setInternal(k, a)
+                    processed_a = True
+                    break
 
-        self.qpars.update(qpars)
+            if not processed_a:
+                if isinstance(a, SmartQuery):
+                    for k, v in a._internals.values():
+                        if v is not None:
+                            self._setInternal(k, v)
+                    self._positionalValues.extend(a._positionalValues)
+                    self._kwarg.update(a._kwarg)
+                elif isinstance(a, dict):
+                    self._kwarg.update(a)
+                elif isinstance(a, (tuple, list, set)):
+                    self._positionalValues.extend(a)
+                else: raise Exception(f'unsupported type of positional argument {i}: {type(a)}')
+
+        self._kwarg.update(kwarg)
+
+    def _setInternal(self, k, v):
+        ints = self._internals
+        if ints.get(k) is not None:
+            raise Exception(f'the SmartQuery internal attribute "{k}" was set more than once')
+
+        ints[k] = v
 
     def _execute(self):
-        db, r, qpars, index = self.db, self.request, self.qpars, self.index
+        ints = self._internals
+        db, r, index = ints['db'], ints['request'], ints['index']
 
         if r is None: return self
 
-        ret = db.execute(r, **qpars)
+        positionalValues = self._positionalValues
+        namedValues, qpars = self._extract_from_kwarg()
+        if positionalValues and namedValues: raise Exception(f'positional and named values cannot be used together')
+
+        args = None
+        if positionalValues:
+            args = tuple(positionalValues)
+        if namedValues:
+            args = namedValues
+        
+        ret = db.execute(r, args=args, **qpars)
         if index is None: return ret
         return nth(ret, index)
 
-    def __call__(self, *arg, **qpars):
+    def _extract_from_kwarg(self):
+        namedValues = {}
+        qpars = {}
+
+        r = self._internals.get('request')
+        if r is None: raise Exception(f'no request string')
+        db = self._internals['db']
+
+        placeholders = set(db.extractNamedPlaceholders(r))
+
+        for k, v in self._kwarg.items():
+            if k in placeholders:
+                namedValues[k] = v
+            else:
+                qpars[k] = v
+
+        return namedValues, qpars
+
+    def __call__(self, *arg, **kwarg):
+        self._consumeArg(arg, kwarg)
         return self._execute()
 
     def __truediv__(self, x):

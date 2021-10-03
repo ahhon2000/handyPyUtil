@@ -1,7 +1,6 @@
 from enum import Enum
 
 from ..classes import ClonableClass
-from .SmartQuery import SmartQuery
 from ..loggers import addStdLogger
 
 from .exceptions import *
@@ -13,11 +12,6 @@ class DBTYPES(Enum):
 
 class Database(ClonableClass):
     dbtype = None
-    PROHIBITED_COL_NAMES = (
-        'cast', 'carg', 'ckwarg', 'commit', 'aslist', 'returnCursor',
-        'rawExceptions ', 'bindObject',
-        'flgDeleted', 'fromRow', 'fromId', 'dbobj',
-    )
     NAMED_ARG_AFFIXES = (None, None)
 
     def __init__(self,
@@ -55,19 +49,31 @@ class Database(ClonableClass):
         self.connection.close()
 
     def __truediv__(self, x):
+        from .SmartQuery import SmartQuery
         return SmartQuery(self) / x
 
     def __call__(self, *arg, **kwarg):
+        from .SmartQuery import SmartQuery
         return SmartQuery(self, *arg, **kwarg)()
 
     def sql(self, *arg, **kwarg):
         return self.execute(*arg, **kwarg)
 
-    def execute(self, r, **qpars):
-        """Execute request r with optional arguments args
+    def execute(self, request,
+        args = None,
+        cast = None,
+        carg = (),
+        ckwarg = None,  # defaults to an empty dict
+        commit = True,
+        aslist = False,
+        returnCursor = False,
+        rawExceptions = None,  # defaults to self.debug if not given
+        bindObject = None,
+    ):
+        """Execute a DB request with optional arguments args
 
-        The list of the keyword arguments and their defaults are in this
-        method's code at the top.
+        args, if given, can be a sequence or a dictionary. It should contain
+        values for substitution for placeholders in request.
 
         See RowMapper for a description of how the `cast' argument works.
 
@@ -75,21 +81,11 @@ class Database(ClonableClass):
             prepareQuery(), execQuery(), fetchRows(), and others
         """
 
-        qpars['request'] = r
+        ckwarg = ckwarg if ckwarg else {}
+        if rawExceptions is None: rawExceptions = self.debug
+        qpars = {vn: v for vn, v in locals().items()}
 
-        #
-        # The method's keyword arguments and their defaults
-        #
-        args = qpars.get('', None)
-        cast = qpars.get('cast', None)
-        carg = qpars.get('carg', ())
-        ckwarg = qpars.get('ckwarg', {})
-        commit = qpars.get('commit', True)
-        aslist = qpars.get('aslist', False)
-        returnCursor = qpars.get('returnCursor', False)
-        rawExceptions = qpars.get('rawExceptions', self.debug)
-        bindObject = qpars.get('bindObject', None)
-
+        r = request
         self.prepareQuery(qpars)
 
         try:
@@ -139,3 +135,4 @@ Arguments:
     def deleteTableRow(self, tableRow, commit=True):raise Exception('unimplemented')
     def createDatabase(self): raise Exception('unimplemented')
     def dropDatabase(self): raise Exception('unimplemented')
+    def extractNamedPlaceholders(self, request): raise Exception('unimplemented')

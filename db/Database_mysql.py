@@ -1,3 +1,4 @@
+import re
 import MySQLdb
 
 from .Database import DBTYPES
@@ -43,3 +44,10 @@ class Database_mysql(DatabaseSQL):
             DROP DATABASE IF EXISTS
             `{self.dbname}`
         """
+
+    def extractNamedPlaceholders(self, request):
+        ps = []
+        for perc, p in re.findall(r'(%+)\((\w+)\)s', request):
+            if len(perc) % 2: ps.append(p)
+
+        return ps

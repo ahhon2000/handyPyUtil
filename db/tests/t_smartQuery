@@ -47,4 +47,4 @@ with TestKitDB() as tk:
         n = q(0, name='potatoes') / """
             SELECT * FROM vegetables WHERE name=%(name)s
         """
-        assert n.pop(1) == 'potatoes'
+        assert n['name'] == 'potatoes', f"n = {n}"
