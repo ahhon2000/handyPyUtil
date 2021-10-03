@@ -1,3 +1,4 @@
+from itertools import chain
 from more_itertools import nth
 
 from .Database import Database
@@ -6,12 +7,12 @@ class SmartQuery:
     INTERNAL_ATTR_TYPES = {
         'db': (Database,),
         'request': (str, bytes),
-        'index': (int, slice),
+        'subscript': (int, slice),
     }
 
     def __init__(self, *arg, **kwarg):
         self._internals = {
-            'db': None, 'request': None, 'index': None,
+            'db': None, 'request': None, 'subscript': None,
         }
 
         self._positionalValues = []
@@ -36,14 +37,24 @@ class SmartQuery:
                         if v is not None:
                             self._setInternal(k, v)
                     self._extendPositionalValues(a._positionalValues)
-                    self._kwarg.update(a._kwarg)
+                    self._update_kwarg(a._kwarg)
                 elif isinstance(a, dict):
-                    self._kwarg.update(a)
+                    self._update_kwarg(a)
                 elif isinstance(a, (tuple, list, set)):
                     self._extendPositionalValues(a)
+                elif callable(a):
+                    self._addFuncToCmpst(a)
                 else: raise Exception(f'unsupported type of positional argument {i}: {type(a)}')
 
-        self._kwarg.update(kwarg)
+        self._update_kwarg(kwarg)
+
+    def _update_kwarg(self, dic):
+        kwarg = self._kwarg
+        for k, v in dic.items():
+            if k in ('cmpst_cast', 'cmpst_carg', 'cmpst_ckwarg'):
+                kwarg[k] = list(chain(kwarg.get(k, []), v))
+            else:
+                kwarg[k] = v
 
     def _setInternal(self, k, v):
         ints = self._internals
@@ -62,7 +73,7 @@ class SmartQuery:
 
     def _execute(self):
         ints = self._internals
-        db, r, index = ints['db'], ints['request'], ints['index']
+        db, r, subscript = ints['db'], ints['request'], ints['subscript']
 
         if r is None: return self
 
@@ -77,8 +88,8 @@ class SmartQuery:
             args = namedValues
         
         ret = db.execute(r, args=args, **qpars)
-        if index is None: return ret
-        return nth(ret, index)
+        if subscript is None: return ret
+        return nth(ret, subscript)
 
     def _extract_from_kwarg(self):
         namedValues = {}
@@ -97,6 +108,15 @@ class SmartQuery:
                 qpars[k] = v
 
         return namedValues, qpars
+
+    def _addFuncToCmpst(self, f):
+        kwarg = self._kwarg
+        for k in ('cmpst_cast', 'cmpst_carg', 'cmpst_ckwarg'):
+            kwarg.setdefault(k, [])
+
+        kwarg['cmpst_cast'] = list(chain(kwarg.get('cmpst_cast', ()), (f,)))
+        kwarg['cmpst_carg'] = list(chain(kwarg.get('cmpst_carg', ()), ((),)))
+        kwarg['cmpst_ckwarg'] = list(chain(kwarg.get('cmpst_ckwarg', ()), ({},)))
 
     def __call__(self, *arg, **kwarg):
         self._consumeArg(arg, kwarg)

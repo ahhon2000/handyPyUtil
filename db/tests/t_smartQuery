@@ -7,16 +7,7 @@ from . import TestKitDB
 from ..Database import DBTYPES
 from .. import Database_mysql, Database_mysql
 
-def general(q, tk):
-    rs = q / "SELECT 138 AS x"
-    assert next(rs)['x'] == 138
-
-    r = q(0) / "SELECT 148 AS y"
-    assert r['y'] == 148
-
-    rs = q(aslist=True) / "SELECT NULL AS x"
-    assert rs[0]['x'] is None
-
+def populate(q, tk):
     q / f"""
         CREATE TABLE vegetables (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -29,14 +20,15 @@ def general(q, tk):
         ('potatoes'), ('tomatoes'), ('carrots')
     """
 
-    ns = q(
-        cast = lambda r: r['name'].capitalize(),
-        aslist = True,
-    ) / f"""
-        SELECT * FROM vegetables ORDER BY name
-    """
+def general(q, tk):
+    rs = q / "SELECT 138 AS x"
+    assert next(rs)['x'] == 138
 
-    assert ns == ['Carrots', 'Potatoes', 'Tomatoes'], f'ns={ns}'
+    r = q(0) / "SELECT 148 AS y"
+    assert r['y'] == 148
+
+    rs = q(aslist=True) / "SELECT NULL AS x"
+    assert rs[0]['x'] is None
 
     n = q(0, name='potatoes') / """
         SELECT * FROM vegetables WHERE name=%(name)s
@@ -68,6 +60,60 @@ def placeholders(q, tk):
     rs = q(['carrots']) * 'tomatoes' / r
     assert next(rs)['name'] == 'potatoes'
 
+def casting(q, tk):
+    r = f"""
+        SELECT * FROM vegetables ORDER BY name
+    """
+
+    ns = q(
+        cast = lambda r: r['name'].capitalize(),
+        aslist = True,
+    ) / r
+    assert ns == ['Carrots', 'Potatoes', 'Tomatoes'], f'ns={ns}'
+
+    class Veg:
+        def __init__(self, row):
+            self.id = row['id']
+            self.name = row['name']
+
+    ns = q(aslist=True, cast=Veg) / r
+    assert ns[0].name == 'carrots'
+    assert ns[1].name == 'potatoes'
+    assert ns[2].name == 'tomatoes'
+
+    # cast function compositions
+
+    for ns in (
+        q(aslist=True) / (lambda veg: veg.name) / Veg / r,
+        q(
+            aslist=True,
+            cmpst_cast = ((lambda veg: veg.name), Veg,),
+            cmpst_carg = ((), ()),
+            cmpst_ckwarg = ({}, {}),
+        ) / r,
+    ):
+        assert ns == ('carrots', 'potatoes', 'tomatoes'), f'ns = {ns}'
+
+def subscripts(q, tk):
+    r = "SELECT * FROM vegetables ORDER BY name"
+    ns = q(0) / r
+    assert ns['name'] == 'carrots'
+
+    ns = q[0] / r
+    assert ns['name'] == 'carrots'
+
+    ns = q[-1] / r
+    assert ns['name'] == 'tomatoes'
+
+    n = q[0]['name'] / r
+    assert n == 'carrots'
+
+    ns = q(cast=lambda row: row['name'])[0:2]
+    assert ns == ('carrots', 'potatoes')
+
+    ns = q(cast=lambda row: row['name'])[slice(1,3)]
+    assert ns == ('potatoes', 'tomatoes')
+
 
 with TestKitDB() as tk:
     for DBCls in (
@@ -75,6 +121,9 @@ with TestKitDB() as tk:
         Database_mysql,
     ):
         q = tk.connect(DBCls=DBCls)
+        populate(q, tk)
 
         general(q, tk)
         placeholders(q, tk)
+        casting(q, tk)
+        subscripts(q, tk)

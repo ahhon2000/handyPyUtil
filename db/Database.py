@@ -69,6 +69,9 @@ class Database(ClonableClass):
         cast = None,
         carg = (),
         ckwarg = None,  # defaults to an empty dict
+        cmpst_cast = (),
+        cmpst_carg = (),
+        cmpst_ckwarg = (),
         commit = True,
         aslist = False,
         returnCursor = False,
@@ -121,6 +124,8 @@ Arguments:
         rowMapper = RowMapper(
             dbtype = self.dbtype,
             cast = cast, carg = carg, ckwarg = ckwarg,
+            cmpst_cast = cmpst_cast,
+            cmpst_carg = cmpst_carg, cmpst_ckwarg = cmpst_ckwarg,
             cursor = cursor,
             bindObject = bindObject if bindObject else self.bindObject,
         )
