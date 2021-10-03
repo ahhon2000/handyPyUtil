@@ -32,25 +32,33 @@ class SmartQuery:
 
             if not processed_a:
                 if isinstance(a, SmartQuery):
-                    for k, v in a._internals.values():
+                    for k, v in a._internals.items():
                         if v is not None:
                             self._setInternal(k, v)
-                    self._positionalValues.extend(a._positionalValues)
+                    self._extendPositionalValues(a._positionalValues)
                     self._kwarg.update(a._kwarg)
                 elif isinstance(a, dict):
                     self._kwarg.update(a)
                 elif isinstance(a, (tuple, list, set)):
-                    self._positionalValues.extend(a)
+                    self._extendPositionalValues(a)
                 else: raise Exception(f'unsupported type of positional argument {i}: {type(a)}')
 
         self._kwarg.update(kwarg)
 
     def _setInternal(self, k, v):
         ints = self._internals
-        if ints.get(k) is not None:
+        v0 = ints.get(k)
+        if v0 is not None  and  not isinstance(v0, Database):
             raise Exception(f'the SmartQuery internal attribute "{k}" was set more than once')
 
         ints[k] = v
+
+    def _appendPositionalValue(self, v):
+        self._positionalValues.append(v)
+
+    def _extendPositionalValues(self, vs):
+        for v in vs:
+            self._appendPositionalValue(v)
 
     def _execute(self):
         ints = self._internals
@@ -97,3 +105,7 @@ class SmartQuery:
     def __truediv__(self, x):
         self._consumeArg((x,), {})
         return self._execute()
+
+    def __mul__(self, x):
+        self._appendPositionalValue(x)
+        return self

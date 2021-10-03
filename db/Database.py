@@ -13,6 +13,7 @@ class DBTYPES(Enum):
 class Database(ClonableClass):
     dbtype = None
     NAMED_ARG_AFFIXES = (None, None)
+    MAX_RECONNECTION_ATTEMPTS = 3
 
     def __init__(self,
         connect = True,
@@ -52,6 +53,10 @@ class Database(ClonableClass):
         from .SmartQuery import SmartQuery
         return SmartQuery(self) / x
 
+    def __mul__(self, x):
+        from .SmartQuery import SmartQuery
+        return SmartQuery(self) * x
+
     def __call__(self, *arg, **kwarg):
         from .SmartQuery import SmartQuery
         return SmartQuery(self, *arg, **kwarg)()
@@ -78,7 +83,7 @@ class Database(ClonableClass):
         See RowMapper for a description of how the `cast' argument works.
 
         Do NOT override this method. Instead, override its callbacks:
-            prepareQuery(), execQuery(), fetchRows(), and others
+            execQuery(), fetchRows(), and others
         """
 
         ckwarg = ckwarg if ckwarg else {}
@@ -86,19 +91,29 @@ class Database(ClonableClass):
         qpars = {vn: v for vn, v in locals().items()}
 
         r = request
-        self.prepareQuery(qpars)
+        success = False
+        for attempt in range(0, self.MAX_RECONNECTION_ATTEMPTS + 1):
+            try:
+                if attempt > 0:
+                    self.logger.info(f"reconnection attempt #{attempt}")
+                    self.reconnect()
 
-        try:
-            self.execQuery(qpars)
-        except Exception as e:
-            if rawExceptions: raise e
-            raise Exception(f"""
+                self.execQuery(qpars)
+                success = True
+            except DBOperationalError:
+                self.logger.warning(f'connection failure')
+            except Exception as e:
+                if rawExceptions: raise e
+                raise Exception(f"""
 {self.dbtype.name} request failed: {e}:
 Request:
 {r}
 Arguments:
 {args}
 """[1:-1])
+            if success: break
+        if not success:
+            raise Exception(f'failed to execute the query')
 
         cursor = qpars.get('cursor')
 
@@ -124,7 +139,6 @@ Arguments:
         self.createDatabase()
 
     def reconnect(self): raise Exception(f'unimplemented')
-    def prepareQuery(self, qpars): pass
     def execQuery(self, qpars): raise Exception('unimplemented')
     def fetchRows(self, qpars): raise Exception('unimplemented')
     def commitAfterQuery(self, qpars): pass

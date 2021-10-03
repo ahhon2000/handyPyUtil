@@ -16,14 +16,14 @@ class TableRow:
         self._flgDeleted = False
         
         if not _dbobj:
-            for k in ('q', 'dbobj', '_q', '_dbobj', 'db', 'database'):
+            for k in ('q', '_dbobj', 'db', 'database', 'dbobj',):
                 q = getattr(_bindObject, k, None)
                 if q and isinstance(q, Database):
                         _dbobj = q
                         break
             if not _dbobj: raise Exception(f'could not find a Database instance')
 
-        self._dbobj = self._q = q = _dbobj
+        self._dbobj = q = _dbobj
 
         if _fromRow and _fromId:
             raise Exception(f'_fromRow and _fromId cannot be used together')
@@ -63,10 +63,10 @@ class TableRow:
         q.createIndices(Cls)
 
     def save(self, commit=True):
-        self._q.saveTableRow(self, commit=commit)
+        self._dbobj.saveTableRow(self, commit=commit)
 
     def delete(self):
-        self._q.deleteTableRow(self)
+        self._dbobj.deleteTableRow(self)
         tableRow._flgDeleted = True
 
     def same(self, other, abs_tol=1e-9):

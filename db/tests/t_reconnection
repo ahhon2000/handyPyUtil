@@ -1,0 +1,18 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+from . import TestKitDB
+from ..Database import DBTYPES
+from .. import Database_mysql, Database_mysql
+
+with TestKitDB() as tk:
+    for DBCls in (
+        #Database_sqlite,  # TODO enable
+        Database_mysql,
+    ):
+        q = tk.connect(DBCls=DBCls)
+        q.close()
+        r = q(0) / "SELECT 18 as x"
+        assert r['x'] == 18

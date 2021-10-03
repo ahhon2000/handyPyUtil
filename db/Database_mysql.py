@@ -4,6 +4,7 @@ import MySQLdb
 from .Database import DBTYPES
 from . import DatabaseSQL
 from .exceptions import *
+from handyPyUtil.loggers.convenience import fmtExc
 
 class Database_mysql(DatabaseSQL):
     dbtype = DBTYPES.mysql
@@ -21,8 +22,15 @@ class Database_mysql(DatabaseSQL):
     def execQuery(self, qpars):
         r = qpars['request']
         args = qpars.get('args')
-        cursor = qpars['cursor']
-        cursor.execute(r, args=args)
+
+        try:
+            qpars['cursor'] = cursor = self.connection.cursor()
+            cursor.execute(r, args=args)
+        except MySQLdb.OperationalError as e:
+            msg = fmtExc(e, inclTraceback=self.debug)
+            msg = f'failed to execute the query: {msg}'
+            self.logger.warning(msg)
+            raise DBOperationalError(msg)
         
     def fetchRows(self, qpars):
         # use fetchall() instead of fetchone() here because requesting

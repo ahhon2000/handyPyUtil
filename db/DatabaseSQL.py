@@ -6,9 +6,6 @@ class DatabaseSQL(Database):
             raise Exception(f'DatabaseSQL does not support dbtype={dbtype}')
         super().__init__(*arg, **kwarg)
 
-    def prepareQuery(self, qpars):
-        qpars['cursor'] = self.connection.cursor()
-
     def commitAfterQuery(self, qpars):
         # commit if this is a retrieval request,
         cursor = qpars.get('cursor')
