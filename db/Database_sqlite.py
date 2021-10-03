@@ -6,14 +6,8 @@ from . import DatabaseSQL
 from .exceptions import ExcRecordNotFound
 
 class Database_mysql(DatabaseSQL):
+    dbtype = DBTYPES.mysql
     NAMED_ARG_AFFIXES = (':', '')
-
-    def __init__(self,
-        connect = True,
-        **kwarg,  # may contain connection keyword arguments
-    ):
-        super().__init__(dbtype=DBTYPES.mysql, **kwarg)
-        if connect: self.reconnect()
 
     def getRowById(self, tbl, Id):
         q = self.q

@@ -1,14 +1,10 @@
-from .Database import DBTYPES
-from . import Database
+from .Database import Database, DBTYPES
 
 class DatabaseSQL(Database):
     def __init__(self, *arg, **kwarg):
-        dbtype = kwarg.get('dbtype')
-        if dbtype not in (DBTYPES.sqlite, DBTYPES.mysql):
+        if self.dbtype not in (DBTYPES.sqlite, DBTYPES.mysql):
             raise Exception(f'DatabaseSQL does not support dbtype={dbtype}')
-
-        super().__init__(self, *arg, **kwarg):
-
+        super().__init__(*arg, **kwarg)
 
     def prepareQuery(self, qpars):
         qpars['cursor'] = self.connection.cursor()

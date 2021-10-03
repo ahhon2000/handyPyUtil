@@ -8,7 +8,6 @@ from pathlib import Path
 from multiprocessing import Process
 
 from handyPyUtil.subproc import Pipe
-from handyPyUtil.dates import Date
 from handyPyUtil.strings import genRandomStr
 from handyPyUtil.loggers import addStdLogger
 from handyPyUtil.paths import createTree
@@ -48,7 +47,6 @@ class TestKit:
         return cmdl
 
     def __enter__(self):
-        dt = Date("now").toText()
         sec = round(time.time())
         rnds = genRandomStr(10)
 

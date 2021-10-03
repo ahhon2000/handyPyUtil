@@ -5,14 +5,8 @@ from . import DatabaseSQL
 from .exceptions import *
 
 class Database_mysql(DatabaseSQL):
+    dbtype = DBTYPES.mysql
     NAMED_ARG_AFFIXES = ('%(', ')s')
-
-    def __init__(self,
-        connect = True,
-        **kwarg,  # may contain connection keyword arguments
-    ):
-        super().__init__(dbtype=DBTYPES.mysql, **kwarg)
-        if connect: self.reconnect()
 
     def reconnect(self):
         conn_kwarg = self.conn_kwarg
@@ -21,7 +15,7 @@ class Database_mysql(DatabaseSQL):
         self.connection = conn
 
     def connect(self, *arg, **kwarg):
-        return self.reconnect(*arg, **kwarg):
+        return self.reconnect(*arg, **kwarg)
 
     def execQuery(self, qpars):
         r = qpars['request']

@@ -12,6 +12,7 @@ class DBTYPES(Enum):
 
 
 class Database(ClonableClass):
+    dbtype = None
     PROHIBITED_COL_NAMES = (
         'cast', 'carg', 'ckwarg', 'commit', 'aslist', 'returnCursor',
         'rawExceptions ', 'bindObject',
@@ -20,30 +21,43 @@ class Database(ClonableClass):
     NAMED_ARG_AFFIXES = (None, None)
 
     def __init__(self,
-        dbtype = None,
+        connect = True,
         debug = False,
         logger = None,
-        bindObject = None,  # object to bind row instances to (see RowMapper)
+        bindObject = None,
         **conn_kwarg,
     ):
+        """Initialise the database interface
+
+        bindObject is the object to bind row instances to (see RowMapper).
+        If not given, will be set to this database object.
+
+        conn_kwarg will be passed on to the DB-specific connection function
+        """
+
+        dbtype = self.dbtype
         if not isinstance(dbtype, DBTYPES):
             raise Exception(f'illegal dbtype : {dbtype}')
 
-        self.dbtype = dbtype
         self.debug = debug
         addStdLogger(self, default=logger)
-        self.bindObject = bindObject
+        self.bindObject = bindObject if bindObject else self
 
         self.connection = None
         self.conn_kwarg = conn_kwarg
 
         self.q = self
 
+        if connect: self.reconnect()
+
+    def close(self):
+        self.connection.close()
+
     def __truediv__(self, x):
         return SmartQuery(self) / x
 
     def __call__(self, *arg, **kwarg):
-        return SmartQuery(self, *arg, **kwarg).execute()
+        return SmartQuery(self, *arg, **kwarg)()
 
     def sql(self, *arg, **kwarg):
         return self.execute(*arg, **kwarg)
@@ -108,6 +122,7 @@ Arguments:
         ret = cursor if returnCursor else rows
         return ret
 
+    def reconnect(self): raise Exception(f'unimplemented')
     def prepareQuery(self, qpars): pass
     def execQuery(self, qpars): raise Exception('unimplemented')
     def fetchRows(self, qpars): raise Exception('unimplemented')
@@ -116,4 +131,4 @@ Arguments:
     def createTable(self, tableRow): raise Exception('unimplemented')
     def createIndices(self, tableRow): raise Exception('unimplemented')
     def saveTableRow(self,tableRow,commit=True):raise Exception('unimplemented')
-    def deleteTableRow(self, tableRow, commit=True):
+    def deleteTableRow(self, tableRow, commit=True):raise Exception('unimplemented')
