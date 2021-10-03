@@ -9,7 +9,7 @@ class DatabaseSQL(Database):
     def prepareQuery(self, qpars):
         qpars['cursor'] = self.connection.cursor()
 
-    def commitAfterQuery(qpars):
+    def commitAfterQuery(self, qpars):
         # commit if this is a retrieval request,
         cursor = qpars.get('cursor')
         if cursor.description is None:

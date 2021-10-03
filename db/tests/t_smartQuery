@@ -12,4 +12,39 @@ with TestKitDB() as tk:
         #Database_sqlite,  # TODO enable
         Database_mysql,
     ):
-        db = tk.connect(DBCls=DBCls)
+        q = tk.connect(DBCls=DBCls)
+
+        rs = q / "SELECT 138 AS x"
+        assert next(rs)['x'] == 138
+
+        r = q(0) / "SELECT 148 AS y"
+        assert r['y'] == 148
+
+        rs = q(aslist=True) / "SELECT NULL AS x"
+        assert rs[0]['x'] is None
+
+        q / f"""
+            CREATE TABLE vegetables (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(32) NOT NULL
+            )
+        """
+
+        q / f"""
+            INSERT INTO vegetables (name) VALUES
+            ('potatoes'), ('tomatoes')
+        """
+
+        ns = q(
+            cast = lambda r: r['name'].capitalize(),
+            aslist = True,
+        ) / f"""
+            SELECT * FROM vegetables ORDER BY name
+        """
+
+        assert ns == ['Potatoes', 'Tomatoes'], f'ns={ns}'
+
+        n = q(0, name='potatoes') / """
+            SELECT * FROM vegetables WHERE name=%(name)s
+        """
+        assert n.pop(1) == 'potatoes'

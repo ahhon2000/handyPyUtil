@@ -17,6 +17,8 @@ class TestKitDB(TestKit):
         db = DBCls(debug=True, logger=self.logger, **dbkwarg)
         self.databases.append(db)
 
+        db.recreateDatabase()
+
         return db
 
     def _setDfltCfgFile(self, DBCls, dbkwarg):
@@ -40,4 +42,5 @@ class TestKitDB(TestKit):
         dbs = self.databases
         while dbs:
             db = dbs.pop()
+            db.recreateDatabase()
             db.close()

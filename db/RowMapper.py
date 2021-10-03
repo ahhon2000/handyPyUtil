@@ -51,7 +51,7 @@ def RowMapper(
     elif dbtype == DBTYPES.mysql:
         rowToDict = lambda r: dict(
             zip(
-                (f[0] for f in cursor.description()),
+                (f[0] for f in cursor.description),
                 r,
             )
         )

@@ -1,7 +1,7 @@
 from enum import Enum
 
 from ..classes import ClonableClass
-from . import SmartQuery
+from .SmartQuery import SmartQuery
 from ..loggers import addStdLogger
 
 from .exceptions import *
@@ -47,6 +47,7 @@ class Database(ClonableClass):
         self.conn_kwarg = conn_kwarg
 
         self.q = self
+        self.dbname = ''
 
         if connect: self.reconnect()
 
@@ -63,7 +64,7 @@ class Database(ClonableClass):
         return self.execute(*arg, **kwarg)
 
     def execute(self, r, **qpars):
-        """Execute request r with optional arguments t
+        """Execute request r with optional arguments args
 
         The list of the keyword arguments and their defaults are in this
         method's code at the top.
@@ -74,7 +75,7 @@ class Database(ClonableClass):
             prepareQuery(), execQuery(), fetchRows(), and others
         """
 
-        qpars = {'request': r}
+        qpars['request'] = r
 
         #
         # The method's keyword arguments and their defaults
@@ -86,7 +87,7 @@ class Database(ClonableClass):
         commit = qpars.get('commit', True)
         aslist = qpars.get('aslist', False)
         returnCursor = qpars.get('returnCursor', False)
-        rawExceptions = qpars.get('rawExceptions', False)
+        rawExceptions = qpars.get('rawExceptions', self.debug)
         bindObject = qpars.get('bindObject', None)
 
         self.prepareQuery(qpars)
@@ -122,6 +123,10 @@ Arguments:
         ret = cursor if returnCursor else rows
         return ret
 
+    def recreateDatabase(self):
+        self.dropDatabase()
+        self.createDatabase()
+
     def reconnect(self): raise Exception(f'unimplemented')
     def prepareQuery(self, qpars): pass
     def execQuery(self, qpars): raise Exception('unimplemented')
@@ -132,3 +137,5 @@ Arguments:
     def createIndices(self, tableRow): raise Exception('unimplemented')
     def saveTableRow(self,tableRow,commit=True):raise Exception('unimplemented')
     def deleteTableRow(self, tableRow, commit=True):raise Exception('unimplemented')
+    def createDatabase(self): raise Exception('unimplemented')
+    def dropDatabase(self): raise Exception('unimplemented')

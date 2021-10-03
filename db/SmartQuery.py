@@ -1,12 +1,14 @@
+from more_itertools import nth
+
 class SmartQuery:
     def __init__(self, *arg, **qpars):
+        self.db, self.request, self.index = None, None, None
+        self.qpars = {}
+
         self._consumeArg(arg, qpars)
 
     def _consumeArg(self, arg, qpars):
         from . import Database
-
-        self.db, self.request, self.index = None, None, None
-        self.qpars = {}
 
         for i, a in enumerate(arg):
             if isinstance(a, Database):
@@ -18,7 +20,7 @@ class SmartQuery:
             elif isinstance(a, int): 
                 if self.index is not None: raise Exception(f'the index parameter was set more than once')
                 self.index = a
-            if isinstance(a, SmartQuery):
+            elif isinstance(a, SmartQuery):
                 arg2 = tuple(
                     a2 for a2 in (a.db, a.request, a.index) if a is not None
                 )
@@ -36,7 +38,7 @@ class SmartQuery:
 
         ret = db.execute(r, **qpars)
         if index is None: return ret
-        return ret[index]
+        return nth(ret, index)
 
     def __call__(self, *arg, **qpars):
         return self._execute()

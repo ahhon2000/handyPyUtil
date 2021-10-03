@@ -14,8 +14,8 @@ class Database_mysql(DatabaseSQL):
 
         self.connection = conn
 
-    def connect(self, *arg, **kwarg):
-        return self.reconnect(*arg, **kwarg)
+        r = self(0) / "SELECT DATABASE() as n"
+        self.dbname = r['n']
 
     def execQuery(self, qpars):
         r = qpars['request']
@@ -26,4 +26,20 @@ class Database_mysql(DatabaseSQL):
     def fetchRows(self, qpars):
         # use fetchall() instead of fetchone() here because requesting
         # rows one by one might cause latency
+        cursor = qpars.get('cursor')
         return cursor.fetchall()
+
+    def createDatabase(self):
+        self(commit=False) / f"""
+            CREATE DATABASE IF NOT EXISTS
+            `{self.dbname}` DEFAULT CHARSET utf8
+        """,
+        self(commit=False) / f"""
+            USE `{self.dbname}`
+        """,
+
+    def dropDatabase(self):
+        self(commit=False) / f"""
+            DROP DATABASE IF EXISTS
+            `{self.dbname}`
+        """
