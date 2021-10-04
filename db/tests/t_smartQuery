@@ -6,6 +6,7 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 from . import TestKitDB
 from ..Database import DBTYPES
 from .. import Database_mysql, Database_mysql
+from .. import TableRow
 
 def populate(q, tk):
     q / f"""
@@ -108,6 +109,45 @@ def casting(q, tk):
             'carrots_f2_f1', 'potatoes_f2_f1', 'tomatoes_f2_f1'
         ), f'ns = {ns}'
 
+def tableRowCasting(q, tk):
+    class Veg(TableRow):
+        columnDefs = {
+            'id': {},
+            'name': {},
+        }
+        def __init__(self, bo, *arg, **kwarg):
+            super().__init__(bo, **kwarg)
+            self.arg = arg
+            self.kwarg = kwarg
+
+    r = "SELECT * FROM vegetables ORDER BY name"
+
+    # the bind object should be set to the DB instance by default
+    vs = q / Veg / r
+    for v in vs:
+        assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
+        assert v._bindObject is q, f"v._bindObject = {v._bindObject}"
+
+    # check if setting a bindObject explicitly works
+
+    class Owner:
+        def __init__(self, q):
+            self.q = q
+
+    owner = Owner(q)
+
+    for arg, kwarg in (
+        ((), {}),
+        (('alpha',), {'x': 3, 'y': 10}),
+    ):
+        vs = q(bindObject=owner, cast=Veg, carg=arg, ckwarg=kwarg) / r
+        for v in vs:
+            assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
+            assert v._bindObject is owner, f"v._bindObject = {v._bindObject}"
+            assert list(arg) == list(v.arg), f'arg={arg}; v.arg={v.arg}'
+            for k, kv in kwarg.items():
+                assert kv == v.kwarg[k]
+
 def subscripts(q, tk):
     r = "SELECT * FROM vegetables ORDER BY name"
     ns = q(0) / r
@@ -140,5 +180,6 @@ with TestKitDB() as tk:
         # TODO uncomment the other funcs
         #general(q, tk)
         #placeholders(q, tk)
-        casting(q, tk)
+        #casting(q, tk)
+        tableRowCasting(q, tk)
         #subscripts(q, tk)
