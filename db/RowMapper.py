@@ -92,26 +92,33 @@ def RowMapper(
     bindObject.logger.debug(f'composition:')   # TODO rm
     bindObject.logger.debug(f'cmpst_cast = {cmpst_cast}')   # TODO rm
 
-    funcsWithArgs = []
+    funcsAndTheirArgs=[] # each el. is ((f1,arg1,kwarg1), (f2,arg2,kwarg2), ...)
     if cast:
-        funcsWithArgs.append(((cast, carg, ckwarg),))
-    funcsWithArgs.append(
-        reversed(list(
-            zip(cmpst_cast, cmpst_carg, cmpst_ckwarg)
-        ))
-    )
+        funcsAndTheirArgs.append(((cast, carg, ckwarg),))
+    if cmpst_cast:
+        nf = len(cmpst_cast)
+        if nf != len(cmpst_carg): raise Exception(f'the number of composite functions != the number of their positional arguments')
+        if nf != len(cmpst_ckwarg): raise Exception(f'the number of composite functions != the number of their keyword arguments')
 
-    gs = [lambda r: rowToDict(r)]
-    for f, arg, kwarg in chain(*funcsWithArgs):
+        funcsAndTheirArgs.append(
+            reversed(list(
+                zip(cmpst_cast, cmpst_carg, cmpst_ckwarg)
+            ))
+        )
+
+    # TODO rm all print's from this module
+    gs = [lambda r: print(f'applying rowToDict')  or  rowToDict(r)]
+    for f, arg, kwarg in chain(*funcsAndTheirArgs):
         g = None
         if isinstance(f, type) and issubclass(f, TableRow):
-            g = lambda r: f(bindObject, *arg, _fromRow = r, **kwarg)
+            g = lambda r, f=f, arg=arg, kwarg=kwarg: \
+                f(bindObject, *arg, _fromRow = r, **kwarg)
         else:
-            g = lambda r: f(*arg, r, **kwarg)
-        bindObject.logger.debug(f'f = {f}')   # TODO rm
+            g = lambda r, f=f, arg=arg, kwarg=kwarg: f(*arg, r, **kwarg)
+        bindObject.logger.debug(f'f = {f}; g = {g}')   # TODO rm
         gs.append(g)
 
-    rowMapper = lambda r: reduce(lambda rr, g: g(rr), gs, r)
+    rowMapper = lambda r: reduce(lambda rr, g: print(f'APPLYING g = {g}') or g(rr), gs, r)
 
     """
     rowMapper = rowToDict

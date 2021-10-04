@@ -83,16 +83,27 @@ def casting(q, tk):
 
     # cast function compositions
 
-    for ns in (
-        q(aslist=True) / (lambda veg: veg.name) / Veg / r,
+    vegToName = lambda veg: veg.name
+    f1 = lambda s: f'{s}_f1'
+    f2 = lambda s: f'{s}_f2'
+    for i, ns in enumerate((
+        q / f1 / f2 / vegToName / Veg / r,
         q(
-            aslist=True,
-            cmpst_cast = ((lambda veg: veg.name), Veg,),
-            cmpst_carg = ((), ()),
-            cmpst_ckwarg = ({}, {}),
+            cmpst_cast = (f1, f2, vegToName, Veg),
         ) / r,
-    ):
-        assert ns == ('carrots', 'potatoes', 'tomatoes'), f'ns = {ns}'
+        q(
+            cast = Veg,
+            cmpst_cast = (f1, f2, vegToName),
+        ) / r,
+        q(
+            cast = Veg, carg = (),
+            cmpst_cast = (f1, f2, vegToName),
+        ) / r,
+    )):
+        ns = list(ns)
+        assert tuple(ns) == (
+            'carrots_f2_f1', 'potatoes_f2_f1', 'tomatoes_f2_f1'
+        ), f'ns = {ns}'
 
 def subscripts(q, tk):
     r = "SELECT * FROM vegetables ORDER BY name"
@@ -123,7 +134,8 @@ with TestKitDB() as tk:
         q = tk.connect(DBCls=DBCls)
         populate(q, tk)
 
-        general(q, tk)
-        placeholders(q, tk)
+        # TODO uncomment the other funcs
+        #general(q, tk)
+        #placeholders(q, tk)
         casting(q, tk)
-        subscripts(q, tk)
+        #subscripts(q, tk)

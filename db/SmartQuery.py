@@ -50,11 +50,26 @@ class SmartQuery:
 
     def _update_kwarg(self, dic):
         kwarg = self._kwarg
+        cmpst_cast = dic.get('cmpst_cast')
+
         for k, v in dic.items():
             if k in ('cmpst_cast', 'cmpst_carg', 'cmpst_ckwarg'):
                 kwarg[k] = list(chain(kwarg.get(k, []), v))
             else:
                 kwarg[k] = v
+
+        # fill cmpst_carg, cmpst_ckwarg, if missing
+        if cmpst_cast is not None:
+            cmpst_carg = dic.get('cmpst_carg')
+            cmpst_ckwarg = dic.get('cmpst_ckwarg')
+            if cmpst_carg is None:
+                kwarg['cmpst_carg'] = list(kwarg.get('cmpst_carg', ())) + [
+                    () for i in range(len(cmpst_cast))
+                ]
+            if cmpst_ckwarg is None:
+                kwarg['cmpst_ckwarg'] = list(kwarg.get('cmpst_ckwarg', ())) + [
+                    {} for i in range(len(cmpst_cast))
+                ]
 
     def _setInternal(self, k, v):
         ints = self._internals
