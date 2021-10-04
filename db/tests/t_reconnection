@@ -14,5 +14,5 @@ with TestKitDB() as tk:
     ):
         q = tk.connect(DBCls=DBCls)
         q.close()
-        r = q(0) / "SELECT 18 as x"
+        r = q[0] / "SELECT 18 as x"
         assert r['x'] == 18
