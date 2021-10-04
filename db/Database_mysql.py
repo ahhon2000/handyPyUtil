@@ -1,5 +1,6 @@
 import re
 import MySQLdb
+from collections import OrderedDict
 
 from .Database import DBTYPES
 from . import DatabaseSQL
@@ -16,7 +17,7 @@ class Database_mysql(DatabaseSQL):
 
         self.connection = conn
 
-        r = self(0) / "SELECT DATABASE() as n"
+        r = self[0] / "SELECT DATABASE() as n"
         self.dbname = r['n']
 
     def execQuery(self, qpars):
@@ -31,12 +32,6 @@ class Database_mysql(DatabaseSQL):
             msg = f'failed to execute the query: {msg}'
             self.logger.warning(msg)
             raise DBOperationalError(msg)
-        
-    def fetchRows(self, qpars):
-        # use fetchall() instead of fetchone() here because requesting
-        # rows one by one might cause latency
-        cursor = qpars.get('cursor')
-        return cursor.fetchall()
 
     def createDatabase(self):
         self(commit=False) / f"""
@@ -54,8 +49,10 @@ class Database_mysql(DatabaseSQL):
         """
 
     def extractNamedPlaceholders(self, request):
-        ps = []
+        ps = OrderedDict()
         for perc, p in re.findall(r'(%+)\((\w+)\)s', request):
-            if len(perc) % 2: ps.append(p)
+            if len(perc) % 2:
+                ps.setdefault(p, 0)
+                ps[p] += 1
 
         return ps

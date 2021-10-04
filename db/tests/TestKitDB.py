@@ -11,13 +11,13 @@ class TestKitDB(TestKit):
 
         self.databases = []
 
-    def connect(self, DBCls=None, **dbkwarg):
+    def connect(self, DBCls=None, recreate_db=True, **dbkwarg):
         self._setDfltCfgFile(DBCls, dbkwarg)
 
         db = DBCls(debug=True, logger=self.logger, **dbkwarg)
         self.databases.append(db)
 
-        db.recreateDatabase()
+        if recreate_db: db.recreateDatabase()
 
         return db
 

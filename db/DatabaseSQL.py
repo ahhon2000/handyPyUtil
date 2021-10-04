@@ -1,6 +1,8 @@
 from .Database import Database, DBTYPES
 
 class DatabaseSQL(Database):
+    MAX_ROWS_PER_FETCH = 1000
+
     def __init__(self, *arg, **kwarg):
         if self.dbtype not in (DBTYPES.sqlite, DBTYPES.mysql):
             raise Exception(f'DatabaseSQL does not support dbtype={dbtype}')
@@ -111,3 +113,20 @@ class DatabaseSQL(Database):
             WHERE `id` = {naa0}Id{naa1}
             LIMIT 1
         """
+        
+    def fetchRows(self, qpars):
+        """Retrieve rows in chunks instead of calling fetchone() or fetchall()
+
+        Requesting rows one by one might cause latency and pulling
+        the whole result set would consume a lot of memory
+        """
+
+        cursor = qpars.get('cursor')
+        chunkSz = self.MAX_ROWS_PER_FETCH
+
+        while True:
+            rs = cursor.fetchmany(chunkSz)
+            if not rs: break
+
+            for r in rs:
+                yield r

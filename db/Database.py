@@ -1,10 +1,13 @@
 import time
 from enum import Enum
+from more_itertools import islice_extended
 
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
 
 from .exceptions import *
+
+from handyPyUtil.iterators import applySubscript
 
 class DBTYPES(Enum):
     sqlite = 0
@@ -21,6 +24,7 @@ class Database(ClonableClass):
         debug = False,
         logger = None,
         bindObject = None,
+        RowMapperMaker = None,
         **conn_kwarg,
     ):
         """Initialise the database interface
@@ -45,6 +49,11 @@ class Database(ClonableClass):
         self.q = self
         self.dbname = ''
 
+        if not RowMapperMaker:
+            from . import RowMapper
+            RowMapperMaker = RowMapper
+        self.RowMapperMaker = RowMapperMaker
+
         if connect: self.reconnect()
 
     def close(self):
@@ -57,6 +66,10 @@ class Database(ClonableClass):
     def __mul__(self, x):
         from .SmartQuery import SmartQuery
         return SmartQuery(self) * x
+
+    def __getitem__(self, x):
+        from .SmartQuery import SmartQuery
+        return SmartQuery(self)[x]
 
     def __call__(self, *arg, **kwarg):
         from .SmartQuery import SmartQuery
@@ -77,14 +90,24 @@ class Database(ClonableClass):
         aslist = False,
         returnCursor = False,
         rawExceptions = None,  # defaults to self.debug if not given
-        bindObject = None,
+        RowMapperMaker = None,
+        subscript = None,
+        bindObject = None,     # Database.RowMapperMaker by default
     ):
         """Execute a DB request with optional arguments args
 
         args, if given, can be a sequence or a dictionary. It should contain
         values for substitution for placeholders in request.
 
-        See RowMapper for a description of how the `cast' argument works.
+        See RowMapper for a description of how the `cast' argument works and
+        what bindObject is.
+
+        You can supply a different RowMapperMaker than the default one
+        (RowMapper).
+
+        The `subscript' argument can be a row index or slice. It will be
+        passed on to the methods of database-specific subsclasses in order
+        to retrieve a subset of rows.
 
         Do NOT override this method. Instead, override its callbacks:
             execQuery(), fetchRows(), and others
@@ -92,6 +115,8 @@ class Database(ClonableClass):
 
         ckwarg = ckwarg if ckwarg else {}
         if rawExceptions is None: rawExceptions = self.debug
+
+        # The values of variables set before this line will be copied to qpars
         qpars = {vn: v for vn, v in locals().items()}
 
         r = request
@@ -121,23 +146,32 @@ Arguments:
 
         cursor = qpars.get('cursor')
 
-        from . import RowMapper
-        rowMapper = RowMapper(
-            dbtype = self.dbtype,
-            cast = cast, carg = carg, ckwarg = ckwarg,
-            cmpst_cast = cmpst_cast,
-            cmpst_carg = cmpst_carg, cmpst_ckwarg = cmpst_ckwarg,
-            cursor = cursor,
-            bindObject = bindObject if bindObject else self.bindObject,
-        )
+        ret = None
+        if returnCursor:
+            ret = cursor
+        else:
+            if not RowMapperMaker: RowMapperMaker = self.RowMapperMaker
+            rowMapper = RowMapperMaker(
+                dbtype = self.dbtype,
+                cast = cast, carg = carg, ckwarg = ckwarg,
+                cmpst_cast = cmpst_cast,
+                cmpst_carg = cmpst_carg, cmpst_ckwarg = cmpst_ckwarg,
+                cursor = cursor,
+                bindObject = bindObject if bindObject else self.bindObject,
+            )
 
-        rows = self.fetchRows(qpars)
-        rows = map(rowMapper, rows)
-        if aslist: rows = list(rows)
+            rows = applySubscript(
+                self.fetchRows(qpars), subscript,
+                intSubscrReturnsElem = False,
+            )
+            rows = map(rowMapper, rows)
+
+            if isinstance(subscript, int): ret = next(rows)
+            elif aslist: ret = list(rows)
+            else: ret = rows
 
         if commit: self.commitAfterQuery(qpars)
 
-        ret = cursor if returnCursor else rows
         return ret
 
     def recreateDatabase(self):

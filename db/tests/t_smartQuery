@@ -25,13 +25,13 @@ def general(q, tk):
     rs = q / "SELECT 138 AS x"
     assert next(rs)['x'] == 138
 
-    r = q(0) / "SELECT 148 AS y"
+    r = q[0] / "SELECT 148 AS y"
     assert r['y'] == 148
 
     rs = q(aslist=True) / "SELECT NULL AS x"
     assert rs[0]['x'] is None
 
-    n = q(0, name='potatoes') / """
+    n = q(name='potatoes')[0] / """
         SELECT * FROM vegetables WHERE name=%(name)s
     """
     assert n['name'] == 'potatoes', f"n = {n}"
@@ -39,37 +39,37 @@ def general(q, tk):
 def placeholders(q, tk):
     # check positional placeholders
 
-    r = "SELECT name FROM vegetables WHERE name != %s and name != %s"
+    req = "SELECT name FROM vegetables WHERE name != %s and name != %s"
 
     # syntax v. 1
-    rs = q / ['carrots', 'tomatoes'] / r
+    rs = q / ['carrots', 'tomatoes'] / req
     assert next(rs)['name'] == 'potatoes'
 
     # syntax v. 2
-    rs = q(('carrots', 'tomatoes')) / r
+    rs = q(('carrots', 'tomatoes')) / req
     assert next(rs)['name'] == 'potatoes'
 
     # syntax v. 3
-    rs = q / q(['carrots', 'tomatoes']) / r
+    rs = q / q(['carrots', 'tomatoes']) / req
     assert next(rs)['name'] == 'potatoes'
 
     # syntax v. 4
-    rs = q * 'carrots' * 'tomatoes' / r
+    rs = q * 'carrots' * 'tomatoes' / req
     assert next(rs)['name'] == 'potatoes'
 
     # syntax mix
-    rs = q(['carrots']) * 'tomatoes' / r
+    rs = q(['carrots']) * 'tomatoes' / req
     assert next(rs)['name'] == 'potatoes'
 
 def casting(q, tk):
-    r = f"""
+    req = f"""
         SELECT * FROM vegetables ORDER BY name
     """
 
     ns = q(
         cast = lambda r: r['name'].capitalize(),
         aslist = True,
-    ) / r
+    ) / req
     assert ns == ['Carrots', 'Potatoes', 'Tomatoes'], f'ns={ns}'
 
     class Veg:
@@ -77,7 +77,7 @@ def casting(q, tk):
             self.id = row['id']
             self.name = row['name']
 
-    ns = q(aslist=True, cast=Veg) / r
+    ns = q(aslist=True, cast=Veg) / req
     assert ns[0].name == 'carrots'
     assert ns[1].name == 'potatoes'
     assert ns[2].name == 'tomatoes'
@@ -88,21 +88,21 @@ def casting(q, tk):
     f1 = lambda s: f'{s}_f1'
     f2 = lambda s: f'{s}_f2'
     for i, ns in enumerate((
-        q / f1 / f2 / vegToName / Veg / r,
-        q / f1 / q / f2 / vegToName / Veg / r,
-        q / f1 / q / f2 / vegToName / Veg / q / r,
-        q / f1 / q / f2 / vegToName / q(cast=Veg) / r,
+        q / f1 / f2 / vegToName / Veg / req,
+        q / f1 / q / f2 / vegToName / Veg / req,
+        q / f1 / q / f2 / vegToName / Veg / q / req,
+        q / f1 / q / f2 / vegToName / q(cast=Veg) / req,
         q(
             cmpst_cast = (f1, f2, vegToName, Veg),
-        ) / r,
+        ) / req,
         q(
             cast = Veg,
             cmpst_cast = (f1, f2, vegToName),
-        ) / r,
+        ) / req,
         q(
             cast = Veg, carg = (),
             cmpst_cast = (f1, f2, vegToName),
-        ) / r,
+        ) / req,
     )):
         ns = list(ns)
         assert tuple(ns) == (
@@ -120,10 +120,10 @@ def tableRowCasting(q, tk):
             self.arg = arg
             self.kwarg = kwarg
 
-    r = "SELECT * FROM vegetables ORDER BY name"
+    req = "SELECT * FROM vegetables ORDER BY name"
 
     # the bind object should be set to the DB instance by default
-    vs = q / Veg / r
+    vs = q / Veg / req
     for v in vs:
         assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
         assert v._bindObject is q, f"v._bindObject = {v._bindObject}"
@@ -140,7 +140,7 @@ def tableRowCasting(q, tk):
         ((), {}),
         (('alpha',), {'x': 3, 'y': 10}),
     ):
-        vs = q(bindObject=owner, cast=Veg, carg=arg, ckwarg=kwarg) / r
+        vs = q(bindObject=owner, cast=Veg, carg=arg, ckwarg=kwarg) / req
         for v in vs:
             assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
             assert v._bindObject is owner, f"v._bindObject = {v._bindObject}"
@@ -149,24 +149,61 @@ def tableRowCasting(q, tk):
                 assert kv == v.kwarg[k]
 
 def subscripts(q, tk):
-    r = "SELECT * FROM vegetables ORDER BY name"
-    ns = q(0) / r
-    assert ns['name'] == 'carrots'
+    req = "SELECT * FROM vegetables ORDER BY name"
+    l = lambda row: row['name']
 
-    ns = q[0] / r
-    assert ns['name'] == 'carrots'
+    r = q[0] / req
+    assert r['name'] == 'carrots'
 
-    ns = q[-1] / r
-    assert ns['name'] == 'tomatoes'
+    r = q[-1] / req
+    assert r['name'] == 'tomatoes', f'r = {r}'
 
-    n = q[0]['name'] / r
+    ns = tuple(q[0:2] / l / req)
+    assert ns == ('carrots', 'potatoes'), f'ns = {ns}'
+
+    ns = tuple(q[0:-1:-1] / l / req)
+    assert ns == (), f'ns = {ns}'
+
+    ns = tuple(q[-1::-1] / l / req)
+    assert ns == ('tomatoes', 'potatoes', 'carrots')
+
+    ns = tuple(q[-1:1:-1] / l / req)
+    assert ns == ('tomatoes',)
+
+    ns = tuple(q[0::2] / l / req)
+    assert ns == ('carrots', 'tomatoes')
+
+    ns = tuple(q[-1::-2] / l / req)
+    assert ns == ('tomatoes', 'carrots')
+
+    n = q[0]['name'] / req
     assert n == 'carrots'
 
-    ns = q(cast=lambda row: row['name'])[0:2]
+    n = q[0]['name'][-1] / req
+    assert n == 's'
+
+    n = q[0]['name'][3:6] / req
+    assert n == 'rot'
+
+    n = q[0]['name'][slice(3,6)] / req
+    assert n == 'rot'
+
+    # With row conversion
+
+    ns = tuple(q(cast=l)[0:2] / req)
     assert ns == ('carrots', 'potatoes')
 
-    ns = q(cast=lambda row: row['name'])[slice(1,3)]
+    ns = tuple(q(cast=l)[slice(1,3)] / req)
     assert ns == ('potatoes', 'tomatoes')
+
+    ns = tuple(q[slice(1,3)] / l / req)
+    assert ns == ('potatoes', 'tomatoes')
+
+    ns = tuple(q()[slice(1,3)] / l / req)
+    assert ns == ('potatoes', 'tomatoes')
+
+    n = q()[slice(1,3)][1] / l / req
+    assert n == 'tomatoes', f'n = {n}'
 
 
 with TestKitDB() as tk:
@@ -177,9 +214,8 @@ with TestKitDB() as tk:
         q = tk.connect(DBCls=DBCls)
         populate(q, tk)
 
-        # TODO uncomment the other funcs
-        #general(q, tk)
-        #placeholders(q, tk)
-        #casting(q, tk)
+        general(q, tk)
+        placeholders(q, tk)
+        casting(q, tk)
         tableRowCasting(q, tk)
-        #subscripts(q, tk)
+        subscripts(q, tk)

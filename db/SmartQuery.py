@@ -1,21 +1,23 @@
 from itertools import chain
-from more_itertools import nth
+from more_itertools import nth, islice_extended
+from collections.abc import Iterable
 
 from .Database import Database
+from handyPyUtil.iterators import applySubscript
 
 class SmartQuery:
     INTERNAL_ATTR_TYPES = {
         'db': (Database,),
         'request': (str, bytes),
-        'subscript': (int, slice),
     }
 
     def __init__(self, *arg, **kwarg):
         self._internals = {
-            'db': None, 'request': None, 'subscript': None,
+            'db': None, 'request': None,
         }
 
         self._positionalValues = []
+        self._subscripts = []
         self._kwarg = {}
 
         self._consumeArg(arg, kwarg)
@@ -37,6 +39,7 @@ class SmartQuery:
                         if v is not None:
                             self._setInternal(k, v)
                     self._extendPositionalValues(a._positionalValues)
+                    self._extendSubscripts(a._subscripts)
                     self._update_kwarg(a._kwarg)
                 elif isinstance(a, dict):
                     self._update_kwarg(a)
@@ -48,6 +51,9 @@ class SmartQuery:
 
         self._update_kwarg(kwarg)
 
+    def _extendSubscripts(self, ss):
+        self._subscripts.extend(ss)
+
     def _update_kwarg(self, dic):
         kwarg = self._kwarg
         cmpst_cast = dic.get('cmpst_cast')
@@ -55,6 +61,8 @@ class SmartQuery:
         for k, v in dic.items():
             if k in ('cmpst_cast', 'cmpst_carg', 'cmpst_ckwarg'):
                 kwarg[k] = list(chain(kwarg.get(k, []), v))
+            elif k == 'subscript':
+                self._extendSubscripts((v,))
             else:
                 kwarg[k] = v
 
@@ -88,7 +96,7 @@ class SmartQuery:
 
     def _execute(self):
         ints = self._internals
-        db, r, subscript = ints['db'], ints['request'], ints['subscript']
+        db, r = ints['db'], ints['request']
 
         if r is None: return self
 
@@ -101,10 +109,23 @@ class SmartQuery:
             args = tuple(positionalValues)
         if namedValues:
             args = namedValues
+
+        subscripts = self._subscripts
+        if subscripts:
+            qpars['subscript'] = subscripts[0]
         
         ret = db.execute(r, args=args, **qpars)
-        if subscript is None: return ret
-        return nth(ret, subscript)
+
+        for i in range(1, len(subscripts)):
+            s = subscripts[i]
+            if isinstance(s, (int, slice)) and \
+                isinstance(ret, Iterable) and \
+                    not isinstance(ret, (list, tuple, str, bytes)):
+
+                ret = applySubscript(ret, s)
+            else:
+                ret = ret[s]
+        return ret
 
     def _extract_from_kwarg(self):
         namedValues = {}
@@ -144,3 +165,7 @@ class SmartQuery:
     def __mul__(self, x):
         self._appendPositionalValue(x)
         return self
+
+    def __getitem__(self, subscript):
+        self._extendSubscripts((subscript,))
+        return self._execute()

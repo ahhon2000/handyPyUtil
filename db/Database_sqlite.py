@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import re
 import sqlite3
 
@@ -24,8 +25,9 @@ class Database_mysql(DatabaseSQL):
     def dropDatabase(self): pass
 
     def extractNamedPlaceholders(self, request):
-        ps = []
+        ps = OrderedDict()
         for colon, p in re.findall(r'(:)(\w+)\b', request):
-            ps.append(p)
+            ps.setdefault(p, 0)
+            ps[p] += 1
 
         return ps
