@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 
 from ..classes import ClonableClass

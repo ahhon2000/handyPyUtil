@@ -1,5 +1,6 @@
 from functools import reduce
 from itertools import chain
+import time
 
 from .Database import DBTYPES
 from . import TableRow
@@ -89,9 +90,6 @@ def RowMapper(
         )
     else: raise Exception(f'unsupported database type: {dbtype}')
 
-    bindObject.logger.debug(f'composition:')   # TODO rm
-    bindObject.logger.debug(f'cmpst_cast = {cmpst_cast}')   # TODO rm
-
     funcsAndTheirArgs=[] # each el. is ((f1,arg1,kwarg1), (f2,arg2,kwarg2), ...)
     if cast:
         funcsAndTheirArgs.append(((cast, carg, ckwarg),))
@@ -106,8 +104,7 @@ def RowMapper(
             ))
         )
 
-    # TODO rm all print's from this module
-    gs = [lambda r: print(f'applying rowToDict')  or  rowToDict(r)]
+    gs = [lambda r: rowToDict(r)]
     for f, arg, kwarg in chain(*funcsAndTheirArgs):
         g = None
         if isinstance(f, type) and issubclass(f, TableRow):
@@ -115,21 +112,7 @@ def RowMapper(
                 f(bindObject, *arg, _fromRow = r, **kwarg)
         else:
             g = lambda r, f=f, arg=arg, kwarg=kwarg: f(*arg, r, **kwarg)
-        bindObject.logger.debug(f'f = {f}; g = {g}')   # TODO rm
         gs.append(g)
 
-    rowMapper = lambda r: reduce(lambda rr, g: print(f'APPLYING g = {g}') or g(rr), gs, r)
-
-    """
-    rowMapper = rowToDict
-    if cast:
-        if isinstance(cast, type) and issubclass(cast, TableRow):
-            rowMapper = lambda r: cast(bindObject, *carg,
-                _fromRow = rowToDict(r),
-                **ckwarg
-            )
-        else:
-            rowMapper = lambda r: cast(*carg, rowToDict(r), **ckwarg)
-    """
-
+    rowMapper = lambda r: reduce(lambda rr, g: g(rr), gs, r)
     return rowMapper

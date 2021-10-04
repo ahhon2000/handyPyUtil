@@ -88,6 +88,9 @@ def casting(q, tk):
     f2 = lambda s: f'{s}_f2'
     for i, ns in enumerate((
         q / f1 / f2 / vegToName / Veg / r,
+        q / f1 / q / f2 / vegToName / Veg / r,
+        q / f1 / q / f2 / vegToName / Veg / q / r,
+        q / f1 / q / f2 / vegToName / q(cast=Veg) / r,
         q(
             cmpst_cast = (f1, f2, vegToName, Veg),
         ) / r,
