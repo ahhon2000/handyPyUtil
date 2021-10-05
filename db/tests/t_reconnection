@@ -5,11 +5,11 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 from . import TestKitDB
 from ..Database import DBTYPES
-from .. import Database_mysql, Database_mysql
+from .. import Database_mysql, Database_sqlite
 
 with TestKitDB() as tk:
     for DBCls in (
-        #Database_sqlite,  # TODO enable
+        Database_sqlite,
         Database_mysql,
     ):
         q = tk.connect(DBCls=DBCls)

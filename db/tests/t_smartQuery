@@ -209,7 +209,7 @@ def subscripts(q, tk):
 
 with TestKitDB() as tk:
     for DBCls in (
-        #Database_sqlite,  # TODO enable
+        Database_sqlite,
         Database_mysql,
     ):
         q = tk.connect(DBCls=DBCls)
