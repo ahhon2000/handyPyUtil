@@ -3,6 +3,7 @@ import re
 import sqlite3
 import shutil
 from pathlib import Path
+from .util import convertPHolders_mysql_to_sqlite
 
 from .Database import DBTYPES
 from . import DatabaseSQL
@@ -36,7 +37,8 @@ class Database_sqlite(DatabaseSQL):
         conn.row_factory = sqlite3.Row
 
     def execQuery(self, qpars):
-        r = qpars['request']
+        r = convertPHolders_mysql_to_sqlite(qpars['request'])
+
         args = qpars.get('args')
         if args is None: args = ()
         cursor = None
@@ -59,6 +61,7 @@ class Database_sqlite(DatabaseSQL):
         if path: path.unlink(missing_ok=True)
 
     def extractNamedPlaceholders(self, request):
+        request = convertPHolders_mysql_to_sqlite(request)
         ps = OrderedDict()
         for colon, p in re.findall(r'(:)(\w+)\b', request):
             ps.setdefault(p, 0)

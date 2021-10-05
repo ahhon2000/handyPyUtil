@@ -1,0 +1,36 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+from ..util import convertPHolders_mysql_to_sqlite as cnv
+
+for i, (x, y0) in enumerate((
+    ('', ''),
+    ('alpha', 'alpha'),
+    ('%', '%'),
+    ('%%', '%'),
+    ('%%%', '%%'),
+    ('%%%%', '%%'),
+    # named placeholders
+    ('%(alpha)s', ':alpha'),
+    ('%%(alpha)s', '%(alpha)s'),
+    ('%%(x)s', '%(x)s'),
+    ('%%%(x)s', '%:x'),
+    ('SELECT %%%(x)s', 'SELECT %:x'),
+    ('s%%(x)s', 's%(x)s'),
+    ('s%%%(x)s', 's%:x'),
+    (' %%%%%%%%%(s)s', ' %%%%:s'),
+    # positional placeholders
+    ('s%s', 's?'),
+    ('s%%s', 's%s'),
+    ('%s', '?'),
+    ('SELECT * FROM users WHERE x=%s', 'SELECT * FROM users WHERE x=?'),
+    # both named and positional
+    ('%%(x)s', '%(x)s'),
+    ('%%%(x)s', '%:x'),
+    (' %%(x)s', ' %(x)s'),
+    (' %%%(x)s', ' %:x'),
+)):
+    y = cnv(x)
+    assert y == y0, f'testcase {i}:  x = {x}; y = {y}; y0 = {y0}'

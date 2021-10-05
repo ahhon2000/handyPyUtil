@@ -16,8 +16,7 @@ class DatabaseSQL(Database):
 
     def getRowById(self, tbl, Id):
         q = self.q
-        H = q.H
-        rows = q(Id=Id) / f"SELECT * FROM `{tbl}` WHERE `id`={H.Id}"
+        rows = q(Id=Id) / f"SELECT * FROM `{tbl}` WHERE `id`=%(Id)s"
 
         if not rows: raise ExcRecordNotFound(f'no record with id={Id}')
         return rows[0]
@@ -48,8 +47,6 @@ class DatabaseSQL(Database):
 
     def saveTableRow(self, tableRow, commit=True):
         q = self
-        H = q.H
-        
         vs = tableRow.getValues()
         sks = sorted(vs)
         tbl = tableRow.tableName
@@ -67,7 +64,7 @@ class DatabaseSQL(Database):
                 ) VALUES (
                     {
                         ", ".join(
-                            f"{H(col)}" for col in sks
+                            f"%({col})s" for col in sks
                         )
                     }
                 )
@@ -80,11 +77,11 @@ class DatabaseSQL(Database):
                 UPDATE `{tbl}` SET
                     {
                         ", ".join(
-                            f"`{col}` = {H(col)}"
+                            f"`{col}` = %({col})s"
                                 for col in tableRow.columnDefs
                         )
                     }
-                WHERE `id` = {H.id}
+                WHERE `id` = %(id)s
                 LIMIT 1
             """
 
@@ -97,20 +94,19 @@ class DatabaseSQL(Database):
                     )
                 }
                 FROM `{tbl}`
-                WHERE `id` = {H.id}
+                WHERE `id` = %(id)s
             """
 
             for k in row.keys():
                 setattr(tableRow, k, row[k])
 
     def deleteTableRow(self, tableRow, commit=True):
-        H = self.H
         Id = getattr(tableRow, 'id')
         tbl = tableRow.tableName
 
         self(Id = Id, commit=commit) / f"""
             DELETE FROM `{tbl}`
-            WHERE `id` = {H.Id}
+            WHERE `id` = %(Id)s
             LIMIT 1
         """
         
