@@ -2,7 +2,7 @@ from functools import reduce
 from itertools import chain
 import time
 
-from .TableRow import TableRow
+from . import TableRow
 
 def RowMapper(qpars):
     """Create a function for mapping db rows returned by fetch* methods

@@ -5,7 +5,8 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 from . import TestKitDB
 from ..Database import DBTYPES
-from .. import Database_mysql, Database_mysql, TableRow
+from .. import Database_mysql, Database_mysql
+from .. import TableRow
 
 def populate(q, tk):
     q / f"""

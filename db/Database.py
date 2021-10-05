@@ -5,7 +5,6 @@ from more_itertools import islice_extended
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
 
-from .RowMapper import RowMapper
 from .exceptions import *
 
 from handyPyUtil.iterators import applySubscript
@@ -51,6 +50,7 @@ class Database(ClonableClass):
         self.dbname = ''
 
         if not RowMapperMaker:
+            from . import RowMapper
             RowMapperMaker = RowMapper
         self.RowMapperMaker = RowMapperMaker
 
