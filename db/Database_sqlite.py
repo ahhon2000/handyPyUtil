@@ -6,14 +6,15 @@ from pathlib import Path
 
 from .Database import DBTYPES
 from . import DatabaseSQL
+from .PlaceholderGenerator import PlaceholderGenerator
 
 from .exceptions import *
 
 
 class Database_sqlite(DatabaseSQL):
     dbtype = DBTYPES.sqlite
-    NAMED_ARG_AFFIXES = (':', '')
     MAX_ROWS_PER_FETCH = 100
+    H = PlaceholderGenerator('?', ':', '')
 
     def __init__(self, *arg, **kwarg):
         path = kwarg.pop('path', None)
@@ -46,7 +47,6 @@ class Database_sqlite(DatabaseSQL):
             self.raiseDBOperationalError('connection problem', e)
 
         try:
-            self.logger.debug(f'args (type={type(args)}): {args}') # TODO rm
             cursor.execute(r, args)
         except sqlite3.OperationalError as e:
             self.raiseDBOperationalError('failed to execute the query', e)

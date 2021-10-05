@@ -16,8 +16,8 @@ class DatabaseSQL(Database):
 
     def getRowById(self, tbl, Id):
         q = self.q
-        naa0, naa1 = self.NAMED_ARG_AFFIXES
-        rows = q(Id=Id) / f"SELECT * FROM `{tbl}` WHERE `id`={naa0}Id{naa1}"
+        H = q.H
+        rows = q(Id=Id) / f"SELECT * FROM `{tbl}` WHERE `id`={H.Id}"
 
         if not rows: raise ExcRecordNotFound(f'no record with id={Id}')
         return rows[0]
@@ -47,8 +47,8 @@ class DatabaseSQL(Database):
             """
 
     def saveTableRow(self, tableRow, commit=True):
-        naa0, naa1 = self.NAMED_ARG_AFFIXES
         q = self
+        H = q.H
         
         vs = tableRow.getValues()
         sks = sorted(vs)
@@ -67,7 +67,7 @@ class DatabaseSQL(Database):
                 ) VALUES (
                     {
                         ", ".join(
-                            f"{naa0}{col}{naa1}" for col in sks
+                            f"{H(col)}" for col in sks
                         )
                     }
                 )
@@ -80,11 +80,11 @@ class DatabaseSQL(Database):
                 UPDATE `{tbl}` SET
                     {
                         ", ".join(
-                            f"`{col}` = {naa0}{col}{naa1}"
+                            f"`{col}` = {H(col)}"
                                 for col in tableRow.columnDefs
                         )
                     }
-                WHERE `id` = {naa0}id{naa1}
+                WHERE `id` = {H.id}
                 LIMIT 1
             """
 
@@ -97,20 +97,20 @@ class DatabaseSQL(Database):
                     )
                 }
                 FROM `{tbl}`
-                WHERE `id` = {naa0}id{naa1}
+                WHERE `id` = {H.id}
             """
 
             for k in row.keys():
                 setattr(tableRow, k, row[k])
 
     def deleteTableRow(self, tableRow, commit=True):
-        naa0, naa1 = self.NAMED_ARG_AFFIXES
+        H = self.H
         Id = getattr(tableRow, 'id')
         tbl = tableRow.tableName
 
         self(Id = Id, commit=commit) / f"""
             DELETE FROM `{tbl}`
-            WHERE `id` = {naa0}Id{naa1}
+            WHERE `id` = {H.Id}
             LIMIT 1
         """
         

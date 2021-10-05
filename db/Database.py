@@ -17,8 +17,8 @@ class DBTYPES(Enum):
 
 class Database(ClonableClass):
     dbtype = None
-    NAMED_ARG_AFFIXES = (None, None)
     MAX_RECONNECTION_ATTEMPTS = 3
+    H = None   # placeholder generator
 
     def __init__(self,
         connect = True,

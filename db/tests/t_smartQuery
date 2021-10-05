@@ -5,13 +5,16 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 from . import TestKitDB
 from ..Database import DBTYPES
-from .. import Database_mysql, Database_mysql
+from .. import Database_sqlite, Database_mysql
 from .. import TableRow
 
 def populate(q, tk):
+    idColDef = "INTEGER NOT NULL PRIMARY KEY"
+    if q.dbtype == DBTYPES.mysql: idColDef += f' AUTO_INCREMENT'
+
     q / f"""
         CREATE TABLE vegetables (
-            id INT PRIMARY KEY AUTO_INCREMENT,
+            id {idColDef},
             name VARCHAR(32) NOT NULL
         )
     """
@@ -22,6 +25,8 @@ def populate(q, tk):
     """
 
 def general(q, tk):
+    H = q.H
+
     rs = q / "SELECT 138 AS x"
     assert next(rs)['x'] == 138
 
@@ -31,15 +36,16 @@ def general(q, tk):
     rs = q(aslist=True) / "SELECT NULL AS x"
     assert rs[0]['x'] is None
 
-    n = q(name='potatoes')[0] / """
-        SELECT * FROM vegetables WHERE name=%(name)s
+    n = q(name='potatoes')[0] / f"""
+        SELECT * FROM vegetables WHERE name={H.name}
     """
     assert n['name'] == 'potatoes', f"n = {n}"
 
 def placeholders(q, tk):
     # check positional placeholders
 
-    req = "SELECT name FROM vegetables WHERE name != %s and name != %s"
+    H = q.H
+    req = f"SELECT name FROM vegetables WHERE name != {H} and name != {H}"
 
     # syntax v. 1
     rs = q / ['carrots', 'tomatoes'] / req

@@ -4,12 +4,13 @@ from collections import OrderedDict
 
 from .Database import DBTYPES
 from . import DatabaseSQL
+from .PlaceholderGenerator import PlaceholderGenerator
 from .exceptions import *
 from handyPyUtil.loggers.convenience import fmtExc
 
 class Database_mysql(DatabaseSQL):
     dbtype = DBTYPES.mysql
-    NAMED_ARG_AFFIXES = ('%(', ')s')
+    H = PlaceholderGenerator('%s', '%(', ')s')
 
     def reconnect(self):
         conn_kwarg = self.conn_kwarg
