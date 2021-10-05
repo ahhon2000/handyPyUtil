@@ -2,16 +2,9 @@ from functools import reduce
 from itertools import chain
 import time
 
-from .Database import DBTYPES
-from . import TableRow
+from .TableRow import TableRow
 
-def RowMapper(
-    dbtype = None,
-    cast = None, carg = (), ckwarg = {},
-    cmpst_cast = (), cmpst_carg = (), cmpst_ckwarg = (),
-    cursor = None,
-    bindObject = None,
-):
+def RowMapper(qpars):
     """Create a function for mapping db rows returned by fetch* methods
 
     The function returned is meant to be used internally in Database.execute()
@@ -76,19 +69,16 @@ def RowMapper(
         #    f(TableRow(bindObject, _fromRow=g(r)), x=10)
     """
 
-    if not isinstance(carg, (tuple, list)): carg = (carg,)
+    cast = qpars.get('cast', None)
+    carg = qpars.get('carg', ())
+    ckwarg = qpars.get('ckwarg', {})
+    cmpst_cast = qpars.get('cmpst_cast', ())
+    cmpst_carg = qpars.get('cmpst_carg', ())
+    cmpst_ckwarg = qpars.get('cmpst_ckwarg', ())
+    RowToDictMaker = qpars.get('RowToDictMaker', None)
+    bindObject = qpars.get('bindObject', None)
 
-    rowToDict = None
-    if dbtype == DBTYPES.sqlite:
-        rowToDict = lambda r: {k: r[k] for k in r.keys()}
-    elif dbtype == DBTYPES.mysql:
-        rowToDict = lambda r: dict(
-            zip(
-                (f[0] for f in cursor.description),
-                r,
-            )
-        )
-    else: raise Exception(f'unsupported database type: {dbtype}')
+    if not isinstance(carg, (tuple, list)): carg = (carg,)
 
     funcsAndTheirArgs=[] # each el. is ((f1,arg1,kwarg1), (f2,arg2,kwarg2), ...)
     if cast:
@@ -104,15 +94,17 @@ def RowMapper(
             ))
         )
 
-    gs = [lambda r: rowToDict(r)]
+    rowToDict = RowToDictMaker(qpars)
+    #gs = [lambda r: rowToDict(r)]
+    gs = [rowToDict]
     for f, arg, kwarg in chain(*funcsAndTheirArgs):
         g = None
         if isinstance(f, type) and issubclass(f, TableRow):
-            g = lambda r, f=f, arg=arg, kwarg=kwarg: \
+            g = lambda r, bindObject=bindObject, f=f, arg=arg, kwarg=kwarg: \
                 f(bindObject, *arg, _fromRow = r, **kwarg)
         else:
             g = lambda r, f=f, arg=arg, kwarg=kwarg: f(*arg, r, **kwarg)
         gs.append(g)
 
-    rowMapper = lambda r: reduce(lambda rr, g: g(rr), gs, r)
+    rowMapper = lambda r, gs=gs: reduce(lambda rr, g: g(rr), gs, r)
     return rowMapper

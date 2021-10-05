@@ -5,6 +5,7 @@ from more_itertools import islice_extended
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
 
+from .RowMapper import RowMapper
 from .exceptions import *
 
 from handyPyUtil.iterators import applySubscript
@@ -50,7 +51,6 @@ class Database(ClonableClass):
         self.dbname = ''
 
         if not RowMapperMaker:
-            from . import RowMapper
             RowMapperMaker = RowMapper
         self.RowMapperMaker = RowMapperMaker
 
@@ -76,6 +76,7 @@ class Database(ClonableClass):
         return SmartQuery(self, *arg, **kwarg)()
 
     def sql(self, *arg, **kwarg):
+        "A synonym for execute()"
         return self.execute(*arg, **kwarg)
 
     def execute(self, request,
@@ -91,13 +92,14 @@ class Database(ClonableClass):
         returnCursor = False,
         rawExceptions = None,  # defaults to self.debug if not given
         RowMapperMaker = None,
+        RowToDictMaker = None,
         subscript = None,
         bindObject = None,     # Database.RowMapperMaker by default
     ):
         """Execute a DB request with optional arguments args
 
         args, if given, can be a sequence or a dictionary. It should contain
-        values for substitution for placeholders in request.
+        values to substitute for placeholders in request.
 
         See RowMapper for a description of how the `cast' argument works and
         what bindObject is.
@@ -109,12 +111,20 @@ class Database(ClonableClass):
         passed on to the methods of database-specific subsclasses in order
         to retrieve a subset of rows.
 
+        RowToDictMaker is a function that creates a function to convert
+        retrieved raw rows to dictionaries.
+        The default maker should be defined in subclasses. If not, a trivial
+        function returning the raw row itself will be used.
+
         Do NOT override this method. Instead, override its callbacks:
             execQuery(), fetchRows(), and others
         """
 
         ckwarg = ckwarg if ckwarg else {}
         if rawExceptions is None: rawExceptions = self.debug
+
+        if not RowToDictMaker: RowToDictMaker = self.RowToDictMaker
+        bindObject = bindObject if bindObject else self.bindObject
 
         # The values of variables set before this line will be copied to qpars
         qpars = {vn: v for vn, v in locals().items()}
@@ -151,14 +161,7 @@ Arguments:
             ret = cursor
         else:
             if not RowMapperMaker: RowMapperMaker = self.RowMapperMaker
-            rowMapper = RowMapperMaker(
-                dbtype = self.dbtype,
-                cast = cast, carg = carg, ckwarg = ckwarg,
-                cmpst_cast = cmpst_cast,
-                cmpst_carg = cmpst_carg, cmpst_ckwarg = cmpst_ckwarg,
-                cursor = cursor,
-                bindObject = bindObject if bindObject else self.bindObject,
-            )
+            rowMapper = RowMapperMaker(qpars)
 
             rows = applySubscript(
                 self.fetchRows(qpars), subscript,
@@ -178,15 +181,24 @@ Arguments:
         self.dropDatabase()
         self.createDatabase()
 
-    def reconnect(self): raise Exception(f'unimplemented')
-    def execQuery(self, qpars): raise Exception('unimplemented')
-    def fetchRows(self, qpars): raise Exception('unimplemented')
+    """
+    
+      *** Methods to Override in Subclasses ***
+    
+    Request-related methods exchange parameters by means of the `qpars'
+    dictionary initially filled out by execute()
+    """
+
+    def reconnect(self): raise NotImplementedError()
+    def execQuery(self, qpars): raise NotImplementedError()
+    def fetchRows(self, qpars): raise NotImplementedError()
     def commitAfterQuery(self, qpars): pass
-    def getRowById(self): raise Exception('unimplemented')
-    def createTable(self, tableRow): raise Exception('unimplemented')
-    def createIndices(self, tableRow): raise Exception('unimplemented')
-    def saveTableRow(self,tableRow,commit=True):raise Exception('unimplemented')
-    def deleteTableRow(self, tableRow, commit=True):raise Exception('unimplemented')
-    def createDatabase(self): raise Exception('unimplemented')
-    def dropDatabase(self): raise Exception('unimplemented')
-    def extractNamedPlaceholders(self, request): raise Exception('unimplemented')
+    def getRowById(self): raise NotImplementedError()
+    def createTable(self, tableRow): raise NotImplementedError()
+    def createIndices(self, tableRow): raise NotImplementedError()
+    def saveTableRow(self, tableRow, commit=True):raise NotImplementedError()
+    def deleteTableRow(self, tableRow, commit=True):raise NotImplementedError()
+    def createDatabase(self): raise NotImplementedError()
+    def dropDatabase(self): raise NotImplementedError()
+    def extractNamedPlaceholders(self, request): raise NotImplementedError()
+    def RowToDictMaker(self, qpars): return lambda row: row

@@ -5,8 +5,7 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 from . import TestKitDB
 from ..Database import DBTYPES
-from .. import Database_mysql, Database_mysql
-from .. import TableRow
+from .. import Database_mysql, Database_mysql, TableRow
 
 def populate(q, tk):
     q / f"""
@@ -109,21 +108,22 @@ def casting(q, tk):
             'carrots_f2_f1', 'potatoes_f2_f1', 'tomatoes_f2_f1'
         ), f'ns = {ns}'
 
+class VegTR(TableRow):
+    columnDefs = {
+        'id': {},
+        'name': {},
+    }
+    def __init__(self, bo, *arg, **kwarg):
+        super().__init__(bo, **kwarg)
+        self.arg = arg
+        self.kwarg = kwarg
+
 def tableRowCasting(q, tk):
-    class Veg(TableRow):
-        columnDefs = {
-            'id': {},
-            'name': {},
-        }
-        def __init__(self, bo, *arg, **kwarg):
-            super().__init__(bo, **kwarg)
-            self.arg = arg
-            self.kwarg = kwarg
 
     req = "SELECT * FROM vegetables ORDER BY name"
 
     # the bind object should be set to the DB instance by default
-    vs = q / Veg / req
+    vs = q / VegTR / req
     for v in vs:
         assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
         assert v._bindObject is q, f"v._bindObject = {v._bindObject}"
@@ -140,7 +140,7 @@ def tableRowCasting(q, tk):
         ((), {}),
         (('alpha',), {'x': 3, 'y': 10}),
     ):
-        vs = q(bindObject=owner, cast=Veg, carg=arg, ckwarg=kwarg) / req
+        vs = q(bindObject=owner, cast=VegTR, carg=arg, ckwarg=kwarg) / req
         for v in vs:
             assert v._dbobj is q, f"v._dbobj = {v._dbobj}"
             assert v._bindObject is owner, f"v._bindObject = {v._bindObject}"

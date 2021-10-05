@@ -31,3 +31,6 @@ class Database_mysql(DatabaseSQL):
             ps[p] += 1
 
         return ps
+
+    def RowToDictMaker(self, qpars):
+        return lambda r: {k: r[k] for k in r.keys()}

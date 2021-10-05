@@ -56,3 +56,12 @@ class Database_mysql(DatabaseSQL):
                 ps[p] += 1
 
         return ps
+
+    def RowToDictMaker(self, qpars):
+        cursor = qpars.get('cursor')
+        return lambda r, cursor=cursor: dict(
+            zip(
+                (f[0] for f in cursor.description),
+                r,
+            )
+        )
