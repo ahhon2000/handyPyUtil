@@ -37,15 +37,19 @@ class Database_sqlite(DatabaseSQL):
     def execQuery(self, qpars):
         r = qpars['request']
         args = qpars.get('args')
+        if args is None: args = ()
+        cursor = None
 
         try:
             qpars['cursor'] = cursor = self.connection.cursor()
+        except (sqlite3.OperationalError, sqlite3.ProgrammingError) as e:
+            self.raiseDBOperationalError('connection problem', e)
+
+        try:
+            self.logger.debug(f'args (type={type(args)}): {args}') # TODO rm
             cursor.execute(r, args)
         except sqlite3.OperationalError as e:
-            msg = fmtExc(e, inclTraceback=self.debug)
-            msg = f'failed to execute the query: {msg}'
-            self.logger.warning(msg)
-            raise DBOperationalError(msg)
+            self.raiseDBOperationalError('failed to execute the query', e)
 
     def createDatabase(self):
         self.reconnect()

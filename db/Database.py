@@ -4,6 +4,7 @@ from more_itertools import islice_extended
 
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
+from ..loggers.convenience import fmtExc
 
 from .exceptions import *
 
@@ -180,6 +181,14 @@ Arguments:
     def recreateDatabase(self):
         self.dropDatabase()
         self.createDatabase()
+
+    def raiseDBOperationalError(self, msg0, e):
+        msg = msg0
+        msg += ': ' + fmtExc(e, inclTraceback=self.debug)
+        self.logger.warning(msg)
+
+        raise DBOperationalError(msg)
+
 
     """
     
