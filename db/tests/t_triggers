@@ -1,0 +1,175 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+import sys
+import os
+from pathlib import Path
+
+from . import TestKitDB
+from ..Database import DBTYPES
+from .. import Database_mysql, Database_sqlite
+
+from math import isclose
+
+from ..TableRow import TableRow
+from ..exceptions import *
+
+
+N_RECORDS = 10
+
+
+TableData = {}   # format:   {Id: dict_of_corr_values}
+for Id in range(1, N_RECORDS + 1):
+    n, x, s = Id ** 2, Id ** 0.5, f'str_{Id}'
+    cvs = {'n': n, 'x': x, 's': s}
+    TableData[Id] = cvs
+
+
+class MyTableRow(TableRow):
+    _tableName = 'my_table_row'
+    _columnDefs = {
+        'id': {
+            DBTYPES.sqlite: 'INTEGER NOT NULL PRIMARY KEY',
+            DBTYPES.mysql: 'INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
+        },
+        'n': {
+            DBTYPES.sqlite: 'INTEGER NOT NULL DEFAULT 0',
+            DBTYPES.mysql: 'INTEGER NOT NULL DEFAULT 0',
+        },
+        'x': {
+            DBTYPES.sqlite: 'FLOAT NOT NULL DEFAULT 0.',
+            DBTYPES.mysql: 'FLOAT(53) NOT NULL DEFAULT 0.',
+        },
+        's': {
+            DBTYPES.sqlite: 'VARCHAR(14) NOT NULL',
+            DBTYPES.mysql: 'VARCHAR(14) NOT NULL',
+        },
+    }
+
+class MyTableRow2(MyTableRow):
+    _tableName = 'my_table_row2'
+
+class MyTableRow3(MyTableRow):
+    _tableName = 'my_table_row3'
+
+
+classes = (MyTableRow, MyTableRow2, MyTableRow3)
+
+
+def chkAgainstOriginalData(Id, mtr):
+    cvs = TableData[Id]
+    assert mtr.n == cvs['n']
+    assert isclose(mtr.x, cvs['x']), f"x={mtr.x} but should be {cvs['x']}"
+    assert mtr.s == cvs['s']
+
+def chkAllTablesAgainstOriginalData():
+    for Cls in classes:
+        for mtr in getAllRecords(Cls):
+            chkAgainstOriginalData(mtr.Id, mtr)
+
+
+def idSearchFails(qq, Id):
+    fails = False
+    try:
+        MyTableRow(qq, _fromId=Id)
+    except ExcRecordNotFound:
+        fails = True
+    return fails
+
+def getNRecords(q):
+    return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow._tableName}'
+
+def populate(tk, q):
+    for Cls in (MyTableRow, MyTableRow2):
+        q.createTable(Cls)
+        for Id in range(1, N_RECORDS + 1):
+            cvs = TableData[Id]
+            mtr = Cls(q, **cvs)
+            mtr._save()
+
+def getAllRecords(Cls):
+    return q / Cls / f"SELECT * FROM {Cls._tableName} ORDER BY id"
+
+def triggersExist(tbl):
+    for timing in ('BEFORE', 'AFTER'):
+        for evt in ('INSERT', 'UPDATE', 'DELETE'):
+            trgn = f'trg_{tbl}_{timing}_{evt}'
+
+            r = None
+            if q.dbtype == DBTYPES.sqlite:
+                r = f"""
+                    SELECT name
+                    FROM sqlite_master
+                    WHERE
+                        type = 'trigger' and
+                        name = %(trgn)s  and
+                        tbl_name = %(tbl)s and
+                        sql like '%%' || %(timing)s || '%%' || %(evt)s || '%%'
+                """
+            elif q.dbtype == DBTYPES.mysql:
+                r = f"""
+                    SELECT trigger_name
+                    FROM information_schema.triggers
+                    WHERE
+                        trigger_name = %(trgn)s  and
+                        event_object_table = %(tbl)s and
+                        action_timing = %(timing)s and
+                        event_manipulation = %(evt)s
+                """
+            else: raise Exception(f'unsupported DB')
+
+            rs = q(trgn=trgn, tbl=tbl, timing=timing, evt=evt, aslist=True) / r
+            assert len(rs) == 1
+
+
+def installTriggers(tk, q):
+    assert not triggersExist(MyTableRow._tableName)
+    q.connectToTrigger(MyTableRow)
+    chkAllTablesAgainstOriginalData()
+    assert triggersExist(MyTableRow._tableName)
+
+    assert not triggersExist(MyTableRow2._tableName)
+    q.connectToTrigger(MyTableRow2)
+    chkAllTablesAgainstOriginalData()
+    assert triggersExist(MyTableRow2._tableName)
+
+    # callbacks for MyTableRow3 which is connected to triggers by table name
+
+    def beforeInsert(bo, old, new):
+        pass
+    def afterInsert(bo, old, new):
+        pass
+    def beforeUpdate(bo, old, new):
+        pass
+    def afterUpdate(bo, old, new):
+        pass
+    def beforeDelete(bo, old, new):
+        pass
+    def afterDelete(bo, old, new):
+        pass
+
+    assert not triggersExist(MyTableRow3._tableName)
+    q.connectToTrigger(MyTableRow3._tableName,
+        beforeInsert = beforeInsert, afterInsert = afterInsert,
+        beforeUpdate = beforeUpdate, afterUpdate = afterUpdate,
+        beforeDelete = beforeDelete, afterDelete = afterDelete,
+    )
+    chkAllTablesAgainstOriginalData()
+    assert triggersExist(MyTableRow3._tableName)
+
+
+with TestKitDB() as tk:
+    for DBCls in (
+        Database_sqlite,
+        Database_mysql,
+    ):
+        class BindObject: pass
+        bo = BindObject()
+
+        q = tk.connect(DBCls=DBCls, bindObject=bo)
+        bo.q = q
+        
+        populate(tk, q)
+        installTriggers(tk, q)
