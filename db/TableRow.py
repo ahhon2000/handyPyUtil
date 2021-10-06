@@ -65,9 +65,9 @@ class TableRow:
     def save(self, commit=True):
         self._dbobj.saveTableRow(self, commit=commit)
 
-    def delete(self):
-        self._dbobj.deleteTableRow(self)
-        tableRow._flgDeleted = True
+    def delete(self, commit=True):
+        self._dbobj.deleteTableRow(self, commit=commit)
+        self._flgDeleted = True
 
     def same(self, other, abs_tol=1e-9):
         for k in self.columnDefs:

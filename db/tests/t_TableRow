@@ -16,6 +16,16 @@ from math import isclose
 from ..TableRow import TableRow
 from ..exceptions import *
 
+
+N_RECORDS = 10
+TableData = {}   # format:   {Id: dict_of_corr_values}
+for Id in range(1, N_RECORDS + 1):
+    n, x, s = Id ** 2, Id ** 0.5, f'str_{Id}'
+    cvs = {'n': n, 'x': x, 's': s}
+    TableData[Id] = cvs
+
+
+
 class MyTableRow(TableRow):
     tableName = 'my_table_row'
     columnDefs = {
@@ -37,52 +47,95 @@ class MyTableRow(TableRow):
         },
     }
 
-def mainChk(q, tk):
+
+def chkAgainstOriginalData(Id, mtr):
+    cvs = TableData[Id]
+    assert mtr.n == cvs['n']
+    assert isclose(mtr.x, cvs['x']), f"x={mtr.x} but should be {cvs['x']}"
+    assert mtr.s == cvs['s']
+
+
+def idSearchFails(qq, Id):
+    fails = False
+    try:
+        MyTableRow(qq, _fromId=Id)
+    except ExcRecordNotFound:
+        fails = True
+    return fails
+
+def getNRecords(q):
+    return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow.tableName}'
+
+def populate(tk, q):
     MyTableRow.createTable(q)
 
-    def idSearchFails(Id):
-        fails = False
-        try:
-            MyTableRow(q, _fromId=Id)
-            raise Exception(f'initialisation from id did not fail (id={Id})')
-        except ExcRecordNotFound:
-            fails = True
-        return fails
-
     # make sure _fromId initialisation fails on an empty table
-    assert idSearchFails(1)
-
-    N = 10
+    assert idSearchFails(q, 1)
 
     # populate the table
     mtrs = []
-    corrValues = {}   # format:   {i: dict_of_corr_values}
-    for i in range(N):
-        n, x, s = i ** 2, i ** 0.5, f'str_{i}'
-        cvs = {'n': n, 'x': x, 's': s}
-        corrValues[i] = cvs
-
+    for Id in range(1, N_RECORDS + 1):
+        cvs = TableData[Id]
         mtr = MyTableRow(q, **cvs)
         mtr.save()
         mtrs.append(mtr)
 
-        assert idSearchFails(i+2)
-        assert idSearchFails(N+1)
+        assert idSearchFails(q, Id+1)
+        assert idSearchFails(q, N_RECORDS+1)
 
     # check if data can be recovered unchanged
-    for i, mtr0 in enumerate(mtrs):
-        Id = mtr0.id
+    for Id, mtr0 in enumerate(mtrs, start=1):
         mtr1 = MyTableRow(q, _fromId=Id)
 
         # test mtr1 against the correct values
-        cvs = corrValues[i]
-        assert mtr1.n == cvs['n']
-        assert isclose(mtr1.x, cvs['x']), f"x={mtr1.x} but should be {cvs['x']}"
-        assert mtr1.s == cvs['s']
+        chkAgainstOriginalData(Id, mtr1)
 
         # test mtr1 against the object initially committed to the DB
         assert mtr0.same(mtr1)
 
+def chkDelete(tk, q):
+    delIds = (N_RECORDS // 2 - 1, N_RECORDS // 2, N_RECORDS // 2 + 1)
+    assert delIds[0] < delIds[1]  and  delIds[1] < delIds[2]
+
+    for nDeletes, (delId, commit) in enumerate(
+        zip(delIds, (None, True, False)), start=1
+    ):
+        q.reconnect()
+
+        mtr = MyTableRow(q, _fromId=delId)
+        assert not mtr._flgDeleted
+
+        if commit is None:
+            mtr.delete()
+        else:
+            mtr.delete(commit=commit)
+
+        assert mtr._flgDeleted
+
+        if commit is False:
+            q.reconnect()
+            n = getNRecords(q)
+            assert n == N_RECORDS - nDeletes + 1
+            assert not idSearchFails(q, delId)
+        else:
+            n = getNRecords(q)
+            assert n == N_RECORDS - nDeletes
+            assert idSearchFails(q, delId)
+
+def chkCast(tk, q):
+    class MyBindObject:
+        q = q
+    mbo = MyBindObject()
+
+    req = f"SELECT * FROM {MyTableRow.tableName} ORDER BY id"
+    mtrs1 = q / MyTableRow / req
+    mtrs2 = q(bindObject=mbo) / MyTableRow / req
+
+    for mtrs, bo in ((mtrs1, q), (mtrs2, mbo)):
+        for mtr in mtrs:
+            assert isinstance(mtr, MyTableRow)
+            chkAgainstOriginalData(mtr.id, mtr)
+            assert mtr._bindObject is bo
 
 with TestKitDB() as tk:
     for DBCls in (
@@ -90,4 +143,7 @@ with TestKitDB() as tk:
         Database_mysql,
     ):
         q = tk.connect(DBCls=DBCls)
-        mainChk(q, tk)
+        populate(tk, q)
+
+        chkCast(tk, q)
+        chkDelete(tk, q)

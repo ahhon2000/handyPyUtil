@@ -178,6 +178,11 @@ Arguments:
 
         return ret
 
+    def commit(self):
+        "Perform an explicit commit. Useful after an execute(commit=False) call"
+
+        self.connection.commit()
+
     def recreateDatabase(self):
         self.dropDatabase()
         self.createDatabase()
