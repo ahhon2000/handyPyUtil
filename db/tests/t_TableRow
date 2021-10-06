@@ -1,0 +1,93 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+import sys
+import os
+from pathlib import Path
+
+from . import TestKitDB
+from ..Database import DBTYPES
+from .. import Database_mysql, Database_sqlite
+
+from math import isclose
+
+from ..TableRow import TableRow
+from ..exceptions import *
+
+class MyTableRow(TableRow):
+    tableName = 'my_table_row'
+    columnDefs = {
+        'id': {
+            DBTYPES.sqlite: 'INTEGER NOT NULL PRIMARY KEY',
+            DBTYPES.mysql: 'INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT',
+        },
+        'n': {
+            DBTYPES.sqlite: 'INTEGER NOT NULL DEFAULT 0',
+            DBTYPES.mysql: 'INTEGER NOT NULL DEFAULT 0',
+        },
+        'x': {
+            DBTYPES.sqlite: 'FLOAT NOT NULL DEFAULT 0.',
+            DBTYPES.mysql: 'FLOAT(53) NOT NULL DEFAULT 0.',
+        },
+        's': {
+            DBTYPES.sqlite: 'VARCHAR(14) NOT NULL',
+            DBTYPES.mysql: 'VARCHAR(14) NOT NULL',
+        },
+    }
+
+def mainChk(q, tk):
+    MyTableRow.createTable(q)
+
+    def idSearchFails(Id):
+        fails = False
+        try:
+            MyTableRow(q, _fromId=Id)
+            raise Exception(f'initialisation from id did not fail (id={Id})')
+        except ExcRecordNotFound:
+            fails = True
+        return fails
+
+    # make sure _fromId initialisation fails on an empty table
+    assert idSearchFails(1)
+
+    N = 10
+
+    # populate the table
+    mtrs = []
+    corrValues = {}   # format:   {i: dict_of_corr_values}
+    for i in range(N):
+        n, x, s = i ** 2, i ** 0.5, f'str_{i}'
+        cvs = {'n': n, 'x': x, 's': s}
+        corrValues[i] = cvs
+
+        mtr = MyTableRow(q, **cvs)
+        mtr.save()
+        mtrs.append(mtr)
+
+        assert idSearchFails(i+2)
+        assert idSearchFails(N+1)
+
+    # check if data can be recovered unchanged
+    for i, mtr0 in enumerate(mtrs):
+        Id = mtr0.id
+        mtr1 = MyTableRow(q, _fromId=Id)
+
+        # test mtr1 against the correct values
+        cvs = corrValues[i]
+        assert mtr1.n == cvs['n']
+        assert isclose(mtr1.x, cvs['x']), f"x={mtr1.x} but should be {cvs['x']}"
+        assert mtr1.s == cvs['s']
+
+        # test mtr1 against the object initially committed to the DB
+        assert mtr0.same(mtr1)
+
+
+with TestKitDB() as tk:
+    for DBCls in (
+        Database_sqlite,
+        Database_mysql,
+    ):
+        q = tk.connect(DBCls=DBCls)
+        mainChk(q, tk)

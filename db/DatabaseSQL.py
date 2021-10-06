@@ -1,4 +1,5 @@
 from .Database import Database, DBTYPES
+from .exceptions import *
 
 class DatabaseSQL(Database):
     MAX_ROWS_PER_FETCH = 1000
@@ -16,7 +17,7 @@ class DatabaseSQL(Database):
 
     def getRowById(self, tbl, Id):
         q = self.q
-        rows = q(Id=Id) / f"SELECT * FROM `{tbl}` WHERE `id`=%(Id)s"
+        rows = q(aslist=True, Id=Id)/ f"SELECT * FROM `{tbl}` WHERE `id`=%(Id)s"
 
         if not rows: raise ExcRecordNotFound(f'no record with id={Id}')
         return rows[0]

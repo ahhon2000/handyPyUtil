@@ -34,7 +34,7 @@ class TableRow:
         if _fromRow:
             fs = _fromRow
         elif _fromId:
-            q.getRowById(tbl, _fromId)
+            fs = q.getRowById(tbl, _fromId)
         else:
             fs = fieldVals
 
