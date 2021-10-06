@@ -59,7 +59,7 @@ class TableRow:
         q.createTable(Cls)
 
     @classmethod
-    def createIndex(Cls, q):
+    def createIndices(Cls, q):
         q.createIndices(Cls)
 
     def save(self, commit=True):

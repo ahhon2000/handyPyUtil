@@ -25,13 +25,12 @@ for Id in range(1, N_RECORDS + 1):
     TableData[Id] = cvs
 
 
-
 class MyTableRow(TableRow):
     tableName = 'my_table_row'
     columnDefs = {
         'id': {
             DBTYPES.sqlite: 'INTEGER NOT NULL PRIMARY KEY',
-            DBTYPES.mysql: 'INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT',
+            DBTYPES.mysql: 'INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
         },
         'n': {
             DBTYPES.sqlite: 'INTEGER NOT NULL DEFAULT 0',
@@ -44,6 +43,14 @@ class MyTableRow(TableRow):
         's': {
             DBTYPES.sqlite: 'VARCHAR(14) NOT NULL',
             DBTYPES.mysql: 'VARCHAR(14) NOT NULL',
+        },
+    }
+    indexDefs = {
+        'n_index': {
+            DBTYPES.sqlite: ('n',), DBTYPES.mysql: ('n',),
+        },
+        'n_s_index': {
+            DBTYPES.sqlite: ('n', 's'), DBTYPES.mysql: ('n', 's'),
         },
     }
 
@@ -92,6 +99,26 @@ def populate(tk, q):
 
         # test mtr1 against the object initially committed to the DB
         assert mtr0.same(mtr1)
+
+def chkIndices(tk, q):
+    MyTableRow.createIndices(q)
+    rs = None
+
+    tbl = MyTableRow.tableName
+    for name in MyTableRow.indexDefs:
+        if q.dbtype == DBTYPES.sqlite:
+            rs = q(aslist=True, name=name) / f"""
+                SELECT * FROM sqlite_master
+                WHERE type='index' and name=%(name)s and tbl_name='{tbl}'
+            """
+        elif q.dbtype == DBTYPES.mysql:
+            rs = q(aslist=True, name=name) / f"""
+                SHOW INDEX FROM `{tbl}`
+                WHERE Key_name = %(name)s
+            """
+        else: raise Exception(f'unsupported db type')
+
+    assert len(rs), f'len(rs) = {len(rs)}; dbtype={q.dbtype}\nIndices:\n{rs}'
 
 def chkDelete(tk, q):
     delIds = (N_RECORDS // 2 - 1, N_RECORDS // 2, N_RECORDS // 2 + 1)
@@ -146,4 +173,5 @@ with TestKitDB() as tk:
         populate(tk, q)
 
         chkCast(tk, q)
+        chkIndices(tk, q)
         chkDelete(tk, q)
