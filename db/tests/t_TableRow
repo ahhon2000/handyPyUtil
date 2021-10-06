@@ -74,7 +74,7 @@ def getNRecords(q):
     return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow._tableName}'
 
 def populate(tk, q):
-    MyTableRow._createTable(q)
+    q.createTable(MyTableRow)
 
     # make sure _fromId initialisation fails on an empty table
     assert idSearchFails(q, 1)
@@ -101,7 +101,7 @@ def populate(tk, q):
         assert mtr0._same(mtr1)
 
 def chkIndices(tk, q):
-    MyTableRow._createIndices(q)
+    q.createIndices(MyTableRow)
     rs = None
 
     tbl = MyTableRow._tableName

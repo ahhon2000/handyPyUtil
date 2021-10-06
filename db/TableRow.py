@@ -60,14 +60,6 @@ class TableRow:
 
             setattr(self, k, v)
 
-    @classmethod
-    def _createTable(Cls, q):
-        q.createTable(Cls)
-
-    @classmethod
-    def _createIndices(Cls, q):
-        q.createIndices(Cls)
-
     def _save(self, commit=True):
         self._dbobj.saveTableRow(self, commit=commit)
 
