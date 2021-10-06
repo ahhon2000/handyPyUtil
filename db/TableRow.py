@@ -5,9 +5,15 @@ from . import Database
 
 
 class TableRow:
-    columnDefs = {}  # format:  {colname: {dbtype: coldef}}
-    indexDefs = {}   # format:  {indname: {dbtype: (col1, col2, ...)}}
-    tableName = ''
+    """A model representing a row in a DB table, as well as the table itself
+
+    Meta attributes (i. e., all attributes except those which model columns)
+    start with an underscore.
+    """
+
+    _columnDefs = {}  # format:  {colname: {dbtype: coldef}}
+    _indexDefs = {}   # format:  {indname: {dbtype: (col1, col2, ...)}}
+    _tableName = ''
 
     def __init__(self, _bindObject, _fromRow=None, _fromId=None, _dbobj=None,
         **fieldVals,
@@ -28,7 +34,7 @@ class TableRow:
         if _fromRow and _fromId:
             raise Exception(f'_fromRow and _fromId cannot be used together')
 
-        tbl = self.tableName
+        tbl = self._tableName
 
         fs = None
         if _fromRow:
@@ -39,38 +45,38 @@ class TableRow:
             fs = fieldVals
 
         for k in fs.keys():
-            if k not in self.columnDefs: raise Exception(f'table `{tbl}` does not have a column named `{k}`')
+            if k not in self._columnDefs: raise Exception(f'table `{tbl}` does not have a column named `{k}`')
             setattr(self, k, fs[k])
 
-    def getValues(self):
+    def _getValues(self):
         return dict(
             (col, getattr(self, col))
-                for col in self.columnDefs if hasattr(self, col)
+                for col in self._columnDefs if hasattr(self, col)
         )
 
-    def setValues(self, vs):
+    def _setValues(self, vs):
         for k, v in vs.items():
-            if k not in self.columnDefs: raise Exception(f'table `{self.tableName}` does not have a column named `{k}`')
+            if k not in self._columnDefs: raise Exception(f'table `{self._tableName}` does not have a column named `{k}`')
 
             setattr(self, k, v)
 
     @classmethod
-    def createTable(Cls, q):
+    def _createTable(Cls, q):
         q.createTable(Cls)
 
     @classmethod
-    def createIndices(Cls, q):
+    def _createIndices(Cls, q):
         q.createIndices(Cls)
 
-    def save(self, commit=True):
+    def _save(self, commit=True):
         self._dbobj.saveTableRow(self, commit=commit)
 
-    def delete(self, commit=True):
+    def _delete(self, commit=True):
         self._dbobj.deleteTableRow(self, commit=commit)
         self._flgDeleted = True
 
-    def same(self, other, abs_tol=1e-9):
-        for k in self.columnDefs:
+    def _same(self, other, abs_tol=1e-9):
+        for k in self._columnDefs:
             v0, v1 = (getattr(r, k, None) for r in (self, other))
 
             if isinstance(v0, (int, str)):
@@ -83,5 +89,5 @@ class TableRow:
 
         return True
 
-    def copy(self):
+    def _copy(self):
         return copy.copy(self)

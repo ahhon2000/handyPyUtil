@@ -113,7 +113,7 @@ def casting(q, tk):
         ), f'ns = {ns}'
 
 class VegTR(TableRow):
-    columnDefs = {
+    _columnDefs = {
         'id': {},
         'name': {},
     }

@@ -25,20 +25,20 @@ class DatabaseSQL(Database):
     def createTable(self, tableRow):
         q = self
         dbtype = self.dbtype
-        tbl = tableRow.tableName
+        tbl = tableRow._tableName
 
         cols = ', '.join(
             f"`{cname}` {cdef[dbtype]}"
-                for cname, cdef in tableRow.columnDefs.items()
+                for cname, cdef in tableRow._columnDefs.items()
         )
         q / f"""CREATE TABLE IF NOT EXISTS `{tbl}` ({cols})"""
 
     def createIndices(self, tableRow):
         q = self
         dbtype = self.dbtype
-        tbl = tableRow.tableName
+        tbl = tableRow._tableName
 
-        for iname, idef in tableRow.indexDefs.items():
+        for iname, idef in tableRow._indexDefs.items():
             q / f"""
                 CREATE INDEX IF NOT EXISTS {iname}
                 ON `{tbl}` ({
@@ -48,9 +48,9 @@ class DatabaseSQL(Database):
 
     def saveTableRow(self, tableRow, commit=True):
         q = self
-        vs = tableRow.getValues()
+        vs = tableRow._getValues()
         sks = sorted(vs)
-        tbl = tableRow.tableName
+        tbl = tableRow._tableName
 
         Id = getattr(tableRow, 'id', None)
         if Id is None:
@@ -79,15 +79,15 @@ class DatabaseSQL(Database):
                     {
                         ", ".join(
                             f"`{col}` = %({col})s"
-                                for col in tableRow.columnDefs
+                                for col in tableRow._columnDefs
                         )
                     }
                 WHERE `id` = %(id)s
                 LIMIT 1
             """
 
-        if len(vs) != len(tableRow.columnDefs):
-            ks = set(tableRow.columnDefs) - set(vs)
+        if len(vs) != len(tableRow._columnDefs):
+            ks = set(tableRow._columnDefs) - set(vs)
             row = q(0, commit=commit, **vs) / f"""
                 SELECT {
                     ', '.join(
@@ -103,7 +103,7 @@ class DatabaseSQL(Database):
 
     def deleteTableRow(self, tableRow, commit=True):
         Id = getattr(tableRow, 'id')
-        tbl = tableRow.tableName
+        tbl = tableRow._tableName
 
         self(Id = Id, commit=commit) / f"""
             DELETE FROM `{tbl}`

@@ -26,8 +26,8 @@ for Id in range(1, N_RECORDS + 1):
 
 
 class MyTableRow(TableRow):
-    tableName = 'my_table_row'
-    columnDefs = {
+    _tableName = 'my_table_row'
+    _columnDefs = {
         'id': {
             DBTYPES.sqlite: 'INTEGER NOT NULL PRIMARY KEY',
             DBTYPES.mysql: 'INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
@@ -45,7 +45,7 @@ class MyTableRow(TableRow):
             DBTYPES.mysql: 'VARCHAR(14) NOT NULL',
         },
     }
-    indexDefs = {
+    _indexDefs = {
         'n_index': {
             DBTYPES.sqlite: ('n',), DBTYPES.mysql: ('n',),
         },
@@ -71,10 +71,10 @@ def idSearchFails(qq, Id):
     return fails
 
 def getNRecords(q):
-    return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow.tableName}'
+    return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow._tableName}'
 
 def populate(tk, q):
-    MyTableRow.createTable(q)
+    MyTableRow._createTable(q)
 
     # make sure _fromId initialisation fails on an empty table
     assert idSearchFails(q, 1)
@@ -84,7 +84,7 @@ def populate(tk, q):
     for Id in range(1, N_RECORDS + 1):
         cvs = TableData[Id]
         mtr = MyTableRow(q, **cvs)
-        mtr.save()
+        mtr._save()
         mtrs.append(mtr)
 
         assert idSearchFails(q, Id+1)
@@ -98,14 +98,14 @@ def populate(tk, q):
         chkAgainstOriginalData(Id, mtr1)
 
         # test mtr1 against the object initially committed to the DB
-        assert mtr0.same(mtr1)
+        assert mtr0._same(mtr1)
 
 def chkIndices(tk, q):
-    MyTableRow.createIndices(q)
+    MyTableRow._createIndices(q)
     rs = None
 
-    tbl = MyTableRow.tableName
-    for name in MyTableRow.indexDefs:
+    tbl = MyTableRow._tableName
+    for name in MyTableRow._indexDefs:
         if q.dbtype == DBTYPES.sqlite:
             rs = q(aslist=True, name=name) / f"""
                 SELECT * FROM sqlite_master
@@ -133,9 +133,9 @@ def chkDelete(tk, q):
         assert not mtr._flgDeleted
 
         if commit is None:
-            mtr.delete()
+            mtr._delete()
         else:
-            mtr.delete(commit=commit)
+            mtr._delete(commit=commit)
 
         assert mtr._flgDeleted
 
@@ -154,7 +154,7 @@ def chkCast(tk, q):
         q = q
     mbo = MyBindObject()
 
-    req = f"SELECT * FROM {MyTableRow.tableName} ORDER BY id"
+    req = f"SELECT * FROM {MyTableRow._tableName} ORDER BY id"
     mtrs1 = q / MyTableRow / req
     mtrs2 = q(bindObject=mbo) / MyTableRow / req
 
