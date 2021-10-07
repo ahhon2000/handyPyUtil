@@ -41,16 +41,16 @@ class Database_mysql(DatabaseSQL):
             raise DBOperationalError(msg)
 
     def createDatabase(self):
-        self(commit=False) / f"""
+        self(commit=False, notriggers=True) / f"""
             CREATE DATABASE IF NOT EXISTS
             `{self.dbname}` DEFAULT CHARSET utf8
         """,
-        self(commit=False) / f"""
+        self(commit=False, notriggers=True) / f"""
             USE `{self.dbname}`
         """,
 
     def dropDatabase(self):
-        self(commit=False) / f"""
+        self(commit=False, notriggers=True) / f"""
             DROP DATABASE IF EXISTS
             `{self.dbname}`
         """

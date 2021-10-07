@@ -1,4 +1,4 @@
-from . import TriggerManagerSQL
+from .TriggerManagerSQL import TriggerManagerSQL
 
 class TriggerManager_mysql(TriggerManagerSQL):
     def createTmpTbl(self):

@@ -48,6 +48,25 @@ class MyTableRow(TableRow):
         },
     }
 
+    def _beforeInsert(self, bo, trgData):
+        pass
+
+    def _beforeUpdate(self, bo, trgData):
+        pass
+
+    def _beforeDelete(self, bo, trgData):
+        pass
+
+    def _afterInsert(self, bo, trgData):
+        pass
+
+    def _afterUpdate(self, bo, trgData):
+        pass
+
+    def _afterDelete(self, bo, trgData):
+        pass
+
+
 class MyTableRow2(MyTableRow):
     _tableName = 'my_table_row2'
 
@@ -64,10 +83,10 @@ def chkAgainstOriginalData(Id, mtr):
     assert isclose(mtr.x, cvs['x']), f"x={mtr.x} but should be {cvs['x']}"
     assert mtr.s == cvs['s']
 
-def chkAllTablesAgainstOriginalData():
+def chkAllTablesAgainstOriginalData(tk, q):
     for Cls in classes:
-        for mtr in getAllRecords(Cls):
-            chkAgainstOriginalData(mtr.Id, mtr)
+        for mtr in getAllRecords(tk, q, Cls):
+            chkAgainstOriginalData(mtr.id, mtr)
 
 
 def idSearchFails(qq, Id):
@@ -82,17 +101,18 @@ def getNRecords(q):
     return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow._tableName}'
 
 def populate(tk, q):
-    for Cls in (MyTableRow, MyTableRow2):
+    for Cls in (MyTableRow, MyTableRow2, MyTableRow3):
         q.createTable(Cls)
         for Id in range(1, N_RECORDS + 1):
             cvs = TableData[Id]
             mtr = Cls(q, **cvs)
             mtr._save()
 
-def getAllRecords(Cls):
+def getAllRecords(tk, q, Cls):
     return q / Cls / f"SELECT * FROM {Cls._tableName} ORDER BY id"
 
-def triggersExist(tbl):
+def allTriggersExist(tk, q, tbl):
+    allExist = True
     for timing in ('BEFORE', 'AFTER'):
         for evt in ('INSERT', 'UPDATE', 'DELETE'):
             trgn = f'trg_{tbl}_{timing}_{evt}'
@@ -121,19 +141,19 @@ def triggersExist(tbl):
             else: raise Exception(f'unsupported DB')
 
             rs = q(trgn=trgn, tbl=tbl, timing=timing, evt=evt, aslist=True) / r
-            assert len(rs) == 1
+            if not rs:
+                allExist = False
+                tk.logger.debug(f'trigger {trgn} does not exist')
+
+    return allExist
 
 
 def installTriggers(tk, q):
-    assert not triggersExist(MyTableRow._tableName)
-    q.connectToTrigger(MyTableRow)
-    chkAllTablesAgainstOriginalData()
-    assert triggersExist(MyTableRow._tableName)
-
-    assert not triggersExist(MyTableRow2._tableName)
-    q.connectToTrigger(MyTableRow2)
-    chkAllTablesAgainstOriginalData()
-    assert triggersExist(MyTableRow2._tableName)
+    for Cls in (MyTableRow, MyTableRow2):
+        assert not allTriggersExist(tk, q, Cls._tableName)
+        q.triggerManager.connectCallbacks(Cls)
+        chkAllTablesAgainstOriginalData(tk ,q)
+        assert allTriggersExist(tk, q, Cls._tableName)
 
     # callbacks for my_table_row3 which is connected to triggers by table name
 
@@ -150,14 +170,16 @@ def installTriggers(tk, q):
     def afterDelete(bo, old, new):
         pass
 
-    assert not triggersExist(MyTableRow3._tableName)
-    q.connectToTrigger(MyTableRow3._tableName,
+    assert not allTriggersExist(tk, q, MyTableRow3._tableName)
+    q.triggerManager.connectCallbacks(MyTableRow3._tableName,
         beforeInsert = beforeInsert, afterInsert = afterInsert,
         beforeUpdate = beforeUpdate, afterUpdate = afterUpdate,
         beforeDelete = beforeDelete, afterDelete = afterDelete,
     )
-    chkAllTablesAgainstOriginalData()
-    assert triggersExist(MyTableRow3._tableName)
+    chkAllTablesAgainstOriginalData(tk, q)
+    assert allTriggersExist(tk, q, MyTableRow3._tableName)
+
+    tk.logger.debug(f'finished trigger installation')
         
 class BindObject:
     pass
@@ -168,10 +190,13 @@ with TestKitDB() as tk:
         Database_sqlite,
         Database_mysql,
     ):
+        tk.logger.debug(f'starting the test case of {DBCls}')
         bo = BindObject()
 
         q = tk.connect(DBCls=DBCls, bindObject=bo)
         bo.q = q
+        tk.logger.debug(f'connected to the {q.dbtype} DB')
         
         populate(tk, q)
         installTriggers(tk, q)
+        tk.logger.debug(f'finished the test case of {DBCls}')

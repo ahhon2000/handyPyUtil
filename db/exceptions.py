@@ -11,7 +11,7 @@ class ExcExecute(Exception):
         msg = f"{dbobj.dbtype.name}: {msg}: {excMsg}"
 
         if dbobj.debug:
-            msg += """
+            msg += f"""
 
 Request:
 {request}

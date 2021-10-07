@@ -7,6 +7,7 @@ class TriggerManager:
     def __init__(self, dbobj):
         self.dbobj = dbobj
         self.triggers = defaultdict(lambda: defaultdict(list))
+        self.logger = dbobj.logger
 
     def createTrigger(self, tbl, trpar): raise NotImplementedError()
     def dropTrigger(self, tbl, trpar): raise NotImplementedError()
@@ -65,10 +66,12 @@ class TriggerManager:
         elif isinstance(tbl, str): tableName = tbl
         else: raise Exception(f'illegal value of argument "tbl"')
 
+        self.logger.debug(f'determined the table name: {tableName}')
+
         trgsFromTRCls = (
             {'name': cbn, 'cb': cb}
-                for cbn, cb in (
-                    cbn, getattr(TRCls, '_' + cbn, None)
+                for (cbn, cb) in (
+                    (cbn, getattr(TRCls, '_' + cbn, None))
                         for cbn in self.AVAILABLE_CALLBACKS
                 ) if cb is not None
         ) if TRCls else ()
@@ -78,6 +81,7 @@ class TriggerManager:
         )
 
         for trg in chain(trgsFromTRCls, trgsFromCallbacks):
+            self.logger.debug(f"connecting {trg['name']} on {tableName}")
             cbn, cb = trg['name'], trg['cb']
             trpar = self.AVAILABLE_CALLBACKS[cbn]
             self.createTrigger(tableName, trpar)

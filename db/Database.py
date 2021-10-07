@@ -102,6 +102,7 @@ class Database(ClonableClass):
         RowToDictMaker = None,
         subscript = None,
         bindObject = None,     # Database.RowMapperMaker by default
+        notriggers = False,
     ):
         """Execute a DB request with optional arguments args
 
@@ -156,18 +157,22 @@ class Database(ClonableClass):
         if not success:
             raise self._rollbackOnExc(qpars, excOut=ExcExecQuery)
 
-        try: trgMgr.catchBeforeCommit(qpars)
-        except Exception as e:
-            raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgBeforeCommit)
+        if not notriggers:
+            try: trgMgr.catchBeforeCommit(qpars)
+            except Exception as e:
+                raise self._rollbackOnExc(qpars,
+                    excIn=e, excOut=ExcTrgBeforeCommit)
 
         if commit:
             try: self.commitAfterQuery(qpars)
             except Exception as e:
                 raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcCommit)
 
-        try: trgMgr.catchAfterCommit(qpars)
-        except Exception as e:
-            raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgAfterCommit)
+        if not notriggers:
+            try: trgMgr.catchAfterCommit(qpars)
+            except Exception as e:
+                raise self._rollbackOnExc(qpars,
+                    excIn=e, excOut=ExcTrgAfterCommit)
 
         # Prepare the value to be returned
 
@@ -230,7 +235,7 @@ class Database(ClonableClass):
     def execQuery(self, qpars): raise NotImplementedError()
     def fetchRows(self, qpars): raise NotImplementedError()
     def commitAfterQuery(self, qpars): pass
-    def rollback(self, qpars): self.connection.rollback()
+    def rollback(self): self.connection.rollback()
     def getRowById(self): raise NotImplementedError()
     def createTable(self, tableRow): raise NotImplementedError()
     def createIndices(self, tableRow): raise NotImplementedError()
@@ -240,3 +245,4 @@ class Database(ClonableClass):
     def dropDatabase(self): raise NotImplementedError()
     def extractNamedPlaceholders(self, request): raise NotImplementedError()
     def RowToDictMaker(self, qpars): return lambda row: row
+    def getColumns(self, tbl): raise NotImplementedError()

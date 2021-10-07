@@ -130,3 +130,11 @@ class DatabaseSQL(Database):
 
             for r in rs:
                 yield r
+
+    def getColumns(self, tbl):
+        cur = self(returnCursor=True) / f"SELECT * FROM `{tbl}` LIMIT 0"
+        cols = [
+            cd[0] for cd in cur.description
+        ]
+
+        return cols
