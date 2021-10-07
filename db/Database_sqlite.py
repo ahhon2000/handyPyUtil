@@ -6,6 +6,7 @@ from pathlib import Path
 from .util import convertPHolders_mysql_to_sqlite
 
 from .Database import DBTYPES
+from . import TriggerManager_sqlite
 from . import DatabaseSQL
 from .PlaceholderGenerator import PlaceholderGenerator
 
@@ -26,6 +27,8 @@ class Database_sqlite(DatabaseSQL):
         dbname = re.sub(r'\..*', '', path.name)
         if not dbname: raise Exception(f'illegal DB name: {dbname}')
         self.dbname = dbname
+
+        kwarg.setdefault('TrgMgrCls', TriggerManager_sqlite)
 
         super().__init__(*arg, **kwarg)
 

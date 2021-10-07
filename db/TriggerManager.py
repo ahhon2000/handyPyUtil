@@ -83,3 +83,18 @@ class TriggerManager:
             self.createTrigger(tableName, trpar)
 
             self.triggers[tableName][cbn].append(cb)
+
+    def fire(self, bindObject, tableName, cbn, trgData):
+        """Fire all callbacks named cbn that were registered for a DB table
+
+        Global callbacks (i. e. those which were registered for all tables)
+        will be fired first, if any.
+        """
+
+        trgData['tableName'] = tableName
+        trgs = self.triggers
+
+        for tableName2 in (None, tableName):
+            cbs = trgs.get(tableName2, {}).get(cbn, ()),
+            for cb in cbs:
+                cb(bindObject, trgData)

@@ -1,4 +1,5 @@
 from .Database import Database, DBTYPES
+from . import TriggerManagerSQL
 from .exceptions import *
 
 
