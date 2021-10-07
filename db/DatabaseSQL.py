@@ -1,12 +1,14 @@
 from .Database import Database, DBTYPES
 from .exceptions import *
 
+
 class DatabaseSQL(Database):
     MAX_ROWS_PER_FETCH = 1000
 
     def __init__(self, *arg, **kwarg):
         if self.dbtype not in (DBTYPES.sqlite, DBTYPES.mysql):
             raise Exception(f'DatabaseSQL does not support dbtype={dbtype}')
+        kwarg.setdefault('TrgMgrCls', TriggerManagerSQL)
         super().__init__(*arg, **kwarg)
 
     def commitAfterQuery(self, qpars):

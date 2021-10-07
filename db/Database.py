@@ -14,7 +14,6 @@ class DBTYPES(Enum):
     sqlite = 0
     mysql = 1
 
-
 class Database(ClonableClass):
     dbtype = None
     MAX_RECONNECTION_ATTEMPTS = 3
@@ -26,6 +25,7 @@ class Database(ClonableClass):
         logger = None,
         bindObject = None,
         RowMapperMaker = None,
+        TrgMgrCls = None,
         **conn_kwarg,
     ):
         """Initialise the database interface
@@ -54,6 +54,13 @@ class Database(ClonableClass):
             from . import RowMapper
             RowMapperMaker = RowMapper
         self.RowMapperMaker = RowMapperMaker
+
+        if not TrgMgrCls:
+            from . import TriggerManager
+            TrgMgrCls = TriggerManager
+        self.triggerManager = trgMgr = TrgMgrCls(self)
+
+        # TODO make sure execute() is called from the same thread as __init__()
 
         if connect: self.reconnect()
 
@@ -91,7 +98,6 @@ class Database(ClonableClass):
         commit = True,
         aslist = False,
         returnCursor = False,
-        rawExceptions = None,  # defaults to self.debug if not given
         RowMapperMaker = None,
         RowToDictMaker = None,
         subscript = None,
@@ -122,7 +128,6 @@ class Database(ClonableClass):
         """
 
         ckwarg = ckwarg if ckwarg else {}
-        if rawExceptions is None: rawExceptions = self.debug
 
         if not RowToDictMaker: RowToDictMaker = self.RowToDictMaker
         bindObject = bindObject if bindObject else self.bindObject
@@ -130,6 +135,7 @@ class Database(ClonableClass):
         # The values of variables set before this line will be copied to qpars
         qpars = {vn: v for vn, v in locals().items()}
 
+        trgMgr = self.triggerManager
         r = request
         success = False
         for attempt in range(0, self.MAX_RECONNECTION_ATTEMPTS + 1):
@@ -143,21 +149,31 @@ class Database(ClonableClass):
             except DBOperationalError:
                 self.logger.warning(f'connection failure')
             except Exception as e:
-                if rawExceptions: raise e
-                raise Exception(f"""
-{self.dbtype.name} request failed: {e}:
-Request:
-{r}
-Arguments:
-{args}
-"""[1:-1])
+                raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcExecQuery)
+
             if success: break
+
         if not success:
-            raise Exception(f'failed to execute the query')
+            raise self._rollbackOnExc(qpars, excOut=ExcExecQuery)
+
+        try: trgMgr.catchBeforeCommit(qpars)
+        except Exception as e:
+            raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgBeforeCommit)
+
+        if commit:
+            try: self.commitAfterQuery(qpars)
+            except Exception as e:
+                raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcCommit)
+
+        try: trgMgr.catchAfterCommit(qpars)
+        except Exception as e:
+            raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgAfterCommit)
+
+        # Prepare the value to be returned
 
         cursor = qpars.get('cursor')
-
         ret = None
+
         if returnCursor:
             ret = cursor
         else:
@@ -174,9 +190,17 @@ Arguments:
             elif aslist: ret = list(rows)
             else: ret = rows
 
-        if commit: self.commitAfterQuery(qpars)
-
         return ret
+
+    def _rollbackOnExc(self, qpars, excIn=None, excOut=None):
+        "Roll back the current transaction after exception e. Return e"
+
+        e = excOut(self,exc=excIn, request=qpars['request'], args=qpars['args'])
+        self.logger.error(str(e))
+
+        self.rollback()
+
+        return e
 
     def commit(self):
         "Perform an explicit commit. Useful after an execute(commit=False) call"
@@ -194,7 +218,6 @@ Arguments:
 
         raise DBOperationalError(msg)
 
-
     """
     
       *** Methods to Override in Subclasses ***
@@ -207,6 +230,7 @@ Arguments:
     def execQuery(self, qpars): raise NotImplementedError()
     def fetchRows(self, qpars): raise NotImplementedError()
     def commitAfterQuery(self, qpars): pass
+    def rollback(self, qpars): self.connection.rollback()
     def getRowById(self): raise NotImplementedError()
     def createTable(self, tableRow): raise NotImplementedError()
     def createIndices(self, tableRow): raise NotImplementedError()

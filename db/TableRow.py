@@ -22,11 +22,14 @@ class TableRow:
         self._flgDeleted = False
         
         if not _dbobj:
-            for k in ('q', '_dbobj', 'db', 'database', 'dbobj',):
-                q = getattr(_bindObject, k, None)
-                if q and isinstance(q, Database):
-                        _dbobj = q
-                        break
+            if isinstance(_bindObject, Database):
+                _dbobj = _bindObject
+            else:
+                for k in ('q', '_dbobj', 'db', 'database', 'dbobj',):
+                    q = getattr(_bindObject, k, None)
+                    if q and isinstance(q, Database):
+                            _dbobj = q
+                            break
             if not _dbobj: raise Exception(f'could not find a Database instance')
 
         self._dbobj = q = _dbobj

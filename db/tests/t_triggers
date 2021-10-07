@@ -135,7 +135,7 @@ def installTriggers(tk, q):
     chkAllTablesAgainstOriginalData()
     assert triggersExist(MyTableRow2._tableName)
 
-    # callbacks for MyTableRow3 which is connected to triggers by table name
+    # callbacks for my_table_row3 which is connected to triggers by table name
 
     def beforeInsert(bo, old, new):
         pass
@@ -158,6 +158,9 @@ def installTriggers(tk, q):
     )
     chkAllTablesAgainstOriginalData()
     assert triggersExist(MyTableRow3._tableName)
+        
+class BindObject:
+    pass
 
 
 with TestKitDB() as tk:
@@ -165,7 +168,6 @@ with TestKitDB() as tk:
         Database_sqlite,
         Database_mysql,
     ):
-        class BindObject: pass
         bo = BindObject()
 
         q = tk.connect(DBCls=DBCls, bindObject=bo)
