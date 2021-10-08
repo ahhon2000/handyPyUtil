@@ -49,22 +49,22 @@ class MyTableRow(TableRow):
     }
 
     def _beforeInsert(self, bo, trgData):
-        pass
+        bo.record('beforeInsert', trgData)
 
     def _beforeUpdate(self, bo, trgData):
-        pass
+        bo.record('beforeUpdate', trgData)
 
     def _beforeDelete(self, bo, trgData):
-        pass
+        bo.record('beforeDelete', trgData)
 
     def _afterInsert(self, bo, trgData):
-        pass
+        bo.record('afterInsert', trgData)
 
     def _afterUpdate(self, bo, trgData):
-        pass
+        bo.record('afterUpdate', trgData)
 
     def _afterDelete(self, bo, trgData):
-        pass
+        bo.record('afterDelete', trgData)
 
 
 class MyTableRow2(MyTableRow):
@@ -157,18 +157,12 @@ def installTriggers(tk, q):
 
     # callbacks for my_table_row3 which is connected to triggers by table name
 
-    def beforeInsert(bo, old, new):
-        pass
-    def afterInsert(bo, old, new):
-        pass
-    def beforeUpdate(bo, old, new):
-        pass
-    def afterUpdate(bo, old, new):
-        pass
-    def beforeDelete(bo, old, new):
-        pass
-    def afterDelete(bo, old, new):
-        pass
+    def beforeInsert(bo, trgData): bo.record('beforeInsert', trgData)
+    def afterInsert(bo, trgData): bo.record('afterInsert', trgData)
+    def beforeUpdate(bo, trgData): bo.record('beforeUpdate', trgData)
+    def afterUpdate(bo, trgData): bo.record('afterUpdate', trgData)
+    def beforeDelete(bo, trgData): bo.record('beforeDelete', trgData)
+    def afterDelete(bo, trgData): bo.record('afterDelet', trgData)
 
     assert not allTriggersExist(tk, q, MyTableRow3._tableName)
     q.triggerManager.connectCallbacks(MyTableRow3._tableName,
@@ -180,9 +174,35 @@ def installTriggers(tk, q):
     assert allTriggersExist(tk, q, MyTableRow3._tableName)
 
     tk.logger.debug(f'finished trigger installation')
+
+def chkTriggers(tk, q, bo):
+    assert len(bo.calls) == 0
+
+    r0 = MyTableRow(bo, _fromId=1)
+    q(commit=False) / f"""
+        UPDATE {MyTableRow._tableName} SET n = 99, x = 99.5, s = 'hundred'
+        WHERE id = 1
+    """
+    r1 = MyTableRow(bo, _fromId=1)
+    assert not r0._same(r1)
+
+    assert len(bo.calls) == 2, f'len(bo.calls) = {len(bo.calls)}'
+    cbn, trgData = bo.calls[0]['cbn'], bo.calls[0]['trgData']
+    assert cbn == 'beforeUpdate'
+
+    rOld, rNew = map(
+        lambda r: MyTableRow(bo, _fromRow=r), (trgData['OLD'], trgData['NEW'])
+    )
+    assert r0._same(rOld)
+    assert r1._same(rNew)
+
         
 class BindObject:
-    pass
+    def __init__(self):
+        self.calls = []  # format:  [{'cbn': '...', 'trgData': {...}}, ...]
+
+    def record(self, cbn, trgData):
+        self.calls.append({'cbn': cbn, 'trgData': trgData})
 
 
 with TestKitDB() as tk:
@@ -199,4 +219,5 @@ with TestKitDB() as tk:
         
         populate(tk, q)
         installTriggers(tk, q)
+        chkTriggers(tk, q, bo)
         tk.logger.debug(f'finished the test case of {DBCls}')

@@ -1,5 +1,6 @@
 import json
 
+from handyPyUtil.loggers.convenience import fmtExc
 from .TriggerManager import TriggerManager
 from .exceptions import *
 
@@ -17,11 +18,16 @@ class TriggerManagerSQL(TriggerManager):
             for timing in ('BEFORE', 'AFTER')
                 for evt in ('INSERT', 'UPDATE', 'DELETE')
     }
-    TMP_TBL_NAME = 'trigger_manager'
+    EXCH_TBL_NAME = 'trigger_manager_exchange'
 
     def __init__(self, *arg, **kwarg):
         super().__init__(*arg, **kwarg)
-        self._tmpTblExists = False
+        self._ready = False
+
+    def reinit(self):
+        self._ready = False
+        self.createTmpTbl()
+        self._ready = True
 
     def createTrigger(self, tbl, trpar):
         timing, evt = trpar.get('timing', ''), trpar.get('event', '')
@@ -54,15 +60,18 @@ class TriggerManagerSQL(TriggerManager):
         data = ",".join(f"'{p}',{v}" for p, v in pathValues)
         data = f"json_set('{initialTree}', {data})"
 
+        exchTbl = self.EXCH_TBL_NAME
         req = f"""
             CREATE TRIGGER IF NOT EXISTS `{trgn}`
             {timing} {evt} ON `{tbl}`
             FOR EACH ROW
             BEGIN
-                INSERT INTO `{self.TMP_TBL_NAME}` (
+                INSERT INTO `{exchTbl}` (
+                    `id`,
                     `table_name`, `timing`, `event`,
                     `data`
                 ) VALUES (
+                    (SELECT coalesce(max(id), 0) + 1 FROM `{exchTbl}`),
                     '{tbl}', '{timing}', '{evt}',
                     {data}
                 );
@@ -70,7 +79,7 @@ class TriggerManagerSQL(TriggerManager):
         """
 
         q(notriggers=True) / req
-        self.logger.debug(f'created trigger "{trgn}"')
+        self.logger.debug(f'created trigger "{trgn}" with the following request:\n{req}')
 
     def dropTrigger(self, tbl, trpar):
         # TODO complete
@@ -78,10 +87,15 @@ class TriggerManagerSQL(TriggerManager):
 
     def createTmpTbl(self): raise NotImplementedError()
 
+    def dropTmpTbl(self):
+        self.dbobj(notriggers=True) / f"""
+            DROP table IF EXISTS `{self.EXCH_TBL_NAME}`
+        """
+        self._ready = False
+
     def connectCallbacks(self, *arg, **kwarg):
-        if not self._tmpTblExists:
-            self.createTmpTbl()
-            self._tmpTblExists = True
+        if not self._ready:
+            self.reinit()
         super().connectCallbacks(*arg, **kwarg)
 
     def nothingToCatch(self, qpars):
@@ -92,28 +106,32 @@ class TriggerManagerSQL(TriggerManager):
         if cursor.description is None: return False
         return True
 
-    def _catchEvtsFromTmpTbl(self, timing, qpars):
+    def prepareForQuery(self, qpars):
+        q = self.dbobj
+        q(notriggers=True, commit=False) / f"DELETE FROM `{self.EXCH_TBL_NAME}`"
+
+    def catch(self, qpars):
         if self.nothingToCatch(qpars): return
 
         q = self.dbobj
 
-        rs = q(timing=timing) / f"""
-            SELECT `table_name`, `event`, `data` FROM `{self.TMP_TBL_NAME}`
-            WHERE `timing` = %(timing)s
+        rs = q(notriggers=True) / f"""
+            SELECT * FROM `{self.EXCH_TBL_NAME}`
             ORDER BY `id`
         """
 
         bo = qpars['bindObject']
         for r in rs:
-            tableName, evt, trgData = r['table_name'], r['event'], r['data']
+            tableName = r['table_name']
+            timing = r['timing']
+            evt = r['event']
+            trgData = json.loads(r['data'])
+
             cbn = timingEvtToCallbackName(timing, evt)
-            self.fire(bo, tableName, cbn, trgData)
 
-        q(commit=False) / f"DELETE FROM `{self.TMP_TBL_NAME}`"
-            
-
-    def catchBeforeCommit(self, qpars):
-        self._catchEvtsFromTmpTbl('BEFORE', qpars)
-
-    def catchAfterCommit(self, qpars):
-        self._catchEvtsFromTmpTbl('AFTER', qpars)
+            try:
+                self.fire(bo, tableName, cbn, trgData)
+            except Exception as e:
+                msg = f"trigger callback `{cbn}' for table `{tableName}' failed"
+                msg += ": " + fmtExc(e, inclTraceback=self.debug)
+                self.logger.error(msg)

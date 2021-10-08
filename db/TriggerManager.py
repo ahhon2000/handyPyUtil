@@ -8,7 +8,9 @@ class TriggerManager:
         self.dbobj = dbobj
         self.triggers = defaultdict(lambda: defaultdict(list))
         self.logger = dbobj.logger
+        self.debug = dbobj.debug
 
+    def reinit(self): raise NotImplementedError()
     def createTrigger(self, tbl, trpar): raise NotImplementedError()
     def dropTrigger(self, tbl, trpar): raise NotImplementedError()
 
@@ -16,8 +18,8 @@ class TriggerManager:
         if not self.triggers: return True
         return False
 
-    def catchBeforeCommit(self, qpars): pass
-    def catchAfterCommit(self, qpars): pass
+    def prepareForQuery(self, qpars): pass
+    def catch(self, qpars): pass
 
     def connectCallbacks(self, tbl, **callbacks):
         """Associate callbacks with a DB table's triggers

@@ -24,11 +24,11 @@ Arguments:
 class ExcExecQuery(ExcExecute):
     DFLT_MSG = 'execQuery() failed'
 
-class ExcTrgBeforeCommit(ExcExecute):
-    DFLT_MSG = 'catchBeforeCommit() failed'
-
 class ExcCommit(ExcExecute):
     DFLT_MSG = 'commitAfterQuery() failed'
 
-class ExcTrgAfterCommit(ExcExecute):
-    DFLT_MSG = 'catchAfterCommit() failed'
+class ExcTrgCatch(ExcExecute):
+    DFLT_MSG = 'failed while catching trigger events'
+
+class ExcTrgPrepare(ExcExecute):
+    DFLT_MSG = 'failed while preparing triggers for a query'

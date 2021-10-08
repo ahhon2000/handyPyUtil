@@ -137,6 +137,12 @@ class Database(ClonableClass):
         qpars = {vn: v for vn, v in locals().items()}
 
         trgMgr = self.triggerManager
+
+        if not notriggers:
+            try: trgMgr.prepareForQuery(qpars)
+            except Exception as e:
+                raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgPrepare)
+
         r = request
         success = False
         for attempt in range(0, self.MAX_RECONNECTION_ATTEMPTS + 1):
@@ -144,6 +150,7 @@ class Database(ClonableClass):
                 if attempt > 0:
                     self.logger.info(f"reconnection attempt #{attempt}")
                     self.reconnect()
+                    self.triggerManager.reinit()  # TODO revise the whole reinit sequence from up here to bottom
 
                 self.execQuery(qpars)
                 success = True
@@ -158,21 +165,14 @@ class Database(ClonableClass):
             raise self._rollbackOnExc(qpars, excOut=ExcExecQuery)
 
         if not notriggers:
-            try: trgMgr.catchBeforeCommit(qpars)
+            try: trgMgr.catch(qpars)
             except Exception as e:
-                raise self._rollbackOnExc(qpars,
-                    excIn=e, excOut=ExcTrgBeforeCommit)
+                raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcTrgCatch)
 
         if commit:
             try: self.commitAfterQuery(qpars)
             except Exception as e:
                 raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcCommit)
-
-        if not notriggers:
-            try: trgMgr.catchAfterCommit(qpars)
-            except Exception as e:
-                raise self._rollbackOnExc(qpars,
-                    excIn=e, excOut=ExcTrgAfterCommit)
 
         # Prepare the value to be returned
 
@@ -236,7 +236,7 @@ class Database(ClonableClass):
     def fetchRows(self, qpars): raise NotImplementedError()
     def commitAfterQuery(self, qpars): pass
     def rollback(self): self.connection.rollback()
-    def getRowById(self): raise NotImplementedError()
+    def getRowById(self, tbl, Id): raise NotImplementedError()
     def createTable(self, tableRow): raise NotImplementedError()
     def createIndices(self, tableRow): raise NotImplementedError()
     def saveTableRow(self, tableRow, commit=True):raise NotImplementedError()
