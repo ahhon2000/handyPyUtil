@@ -149,7 +149,7 @@ def allTriggersExist(tk, q, tbl):
             rs = q(trgn=trgn, tbl=tbl, timing=timing, evt=evt, aslist=True) / r
             if not rs:
                 allExist = False
-                tk.logger.debug(f'trigger {trgn} does not exist')
+                #tk.logger.debug(f'trigger {trgn} does not exist')
 
     return allExist
 
@@ -184,23 +184,41 @@ def installTriggers(tk, q):
 def chkTriggers(tk, q, bo):
     assert len(bo.calls) == 0
 
-    r0 = MyTableRow(bo, _fromId=1)
-    q(commit=False) / f"""
-        UPDATE {MyTableRow._tableName} SET n = 99, x = 99.5, s = 'hundred'
-        WHERE id = 1
-    """
-    r1 = MyTableRow(bo, _fromId=1)
-    assert not r0._same(r1)
+    orig_mtrs = {
+        Cls: {mtr.id: mtr for mtr in getAllRecords(tk, q, Cls)}
+            for Cls in classes
+    }
 
-    assert len(bo.calls) == 2, f'len(bo.calls) = {len(bo.calls)}'
-    cbn, trgData = bo.calls[0]['cbn'], bo.calls[0]['trgData']
-    assert cbn == 'beforeUpdate'
+    for clind, Cls in enumerate(classes):
+        for Id in range(1, len(orig_mtrs[Cls])+1):
+            r0 = Cls(bo, _fromId=Id)
+            q(commit=False, Id=Id) / f"""
+                UPDATE {Cls._tableName} SET n = n + 1, x = x + 1,
+                    s = {
+                        "s || 'z'" if q.dbtype == DBTYPES.sqlite else "concat(s, 'z')"
+                    }
+                WHERE id = %(Id)s
+            """
+            r1 = MyTableRow(bo, _fromId=Id)
+            assert r0._same(orig_mtrs[Cls][Id])
+            assert not r0._same(r1)
 
-    rOld, rNew = map(
-        lambda r: MyTableRow(bo, _fromRow=r), (trgData['OLD'], trgData['NEW'])
-    )
-    assert r0._same(rOld)
-    assert r1._same(rNew)
+            assert len(bo.calls) == 2 * N_RECORDS * clind + 2 * Id, f'len(bo.calls) = {len(bo.calls)}; Id = {Id}'
+            cbn, trgData = (
+                bo.calls[-2][k]
+                    for k in ('cbn', 'trgData')
+            )
+            assert cbn == 'beforeUpdate'
+
+            rOld, rNew = map(
+                lambda r: MyTableRow(bo, _fromRow=r), (trgData['OLD'], trgData['NEW'])
+            )
+            assert r0._same(rOld)
+            assert r1._same(rNew)
+
+            assert r0.n + 1 == r1.n
+            assert isclose(r0.x + 1, r1.x)
+            assert r0.s + 'z' == r1.s
 
         
 class BindObject:

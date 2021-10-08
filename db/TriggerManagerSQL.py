@@ -79,7 +79,7 @@ class TriggerManagerSQL(TriggerManager):
         """
 
         q(notriggers=True) / req
-        self.logger.debug(f'created trigger "{trgn}" with the following request:\n{req}')
+        #self.logger.debug(f'created trigger "{trgn}" with the following request:\n{req}')
 
     def dropTrigger(self, tbl, trpar):
         # TODO complete
