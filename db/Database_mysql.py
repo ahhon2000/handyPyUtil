@@ -5,7 +5,6 @@ from collections import OrderedDict
 from .Database import DBTYPES
 from . import DatabaseSQL
 from .PlaceholderGenerator import PlaceholderGenerator
-from . import TriggerManager_mysql
 
 from .exceptions import *
 from handyPyUtil.loggers.convenience import fmtExc
@@ -15,7 +14,6 @@ class Database_mysql(DatabaseSQL):
     H = PlaceholderGenerator('%s', '%(', ')s')
 
     def __init__(self, *arg, **kwarg):
-        kwarg.setdefault('TrgMgrCls', TriggerManager_mysql)
         super().__init__(*arg, **kwarg)
 
     def reconnect(self):

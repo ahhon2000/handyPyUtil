@@ -34,7 +34,7 @@ class DatabaseSQL(Database):
             f"`{cname}` {cdef[dbtype]}"
                 for cname, cdef in tableRow._columnDefs.items()
         )
-        q / f"""CREATE TABLE IF NOT EXISTS `{tbl}` ({cols})"""
+        q(notriggers=True) / f"""CREATE TABLE IF NOT EXISTS `{tbl}` ({cols})"""
 
     def createIndices(self, tableRow):
         q = self

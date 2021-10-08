@@ -3,6 +3,7 @@ import json
 from handyPyUtil.loggers.convenience import fmtExc
 from .TriggerManager import TriggerManager
 from .exceptions import *
+from .TriggerExchTbl import TriggerExchTbl
 
 def timingEvtToCallbackName(timing, evt):
     return f'{timing.lower()}{evt.capitalize()}'
@@ -18,7 +19,6 @@ class TriggerManagerSQL(TriggerManager):
             for timing in ('BEFORE', 'AFTER')
                 for evt in ('INSERT', 'UPDATE', 'DELETE')
     }
-    EXCH_TBL_NAME = 'trigger_manager_exchange'
 
     def __init__(self, *arg, **kwarg):
         super().__init__(*arg, **kwarg)
@@ -26,7 +26,7 @@ class TriggerManagerSQL(TriggerManager):
 
     def reinit(self):
         self._ready = False
-        self.createTmpTbl()
+        TriggerExchTbl._create(self.dbobj)
         self._ready = True
 
     def createTrigger(self, tbl, trpar):
@@ -60,18 +60,18 @@ class TriggerManagerSQL(TriggerManager):
         data = ",".join(f"'{p}',{v}" for p, v in pathValues)
         data = f"json_set('{initialTree}', {data})"
 
-        exchTbl = self.EXCH_TBL_NAME
+        exchTblName = TriggerExchTbl._tableName
         req = f"""
             CREATE TRIGGER IF NOT EXISTS `{trgn}`
             {timing} {evt} ON `{tbl}`
             FOR EACH ROW
             BEGIN
-                INSERT INTO `{exchTbl}` (
+                INSERT INTO `{exchTblName}` (
                     `id`,
                     `table_name`, `timing`, `event`,
                     `data`
                 ) SELECT
-                    (SELECT coalesce(max(id), 0) + 1 FROM `{exchTbl}`),
+                    (SELECT coalesce(max(id), 0) + 1 FROM `{exchTblName}`),
                     '{tbl}', '{timing}', '{evt}',
                     {data}
                 ;
@@ -84,8 +84,6 @@ class TriggerManagerSQL(TriggerManager):
     def dropTrigger(self, tbl, trpar):
         # TODO complete
         assert 0
-
-    def createTmpTbl(self): raise NotImplementedError()
 
     def dropTmpTbl(self):
         self.dbobj(notriggers=True) / f"""
@@ -109,32 +107,29 @@ class TriggerManagerSQL(TriggerManager):
     def prepareForQuery(self, qpars):
         q = self.dbobj
         if self.triggers:
-            q(notriggers=True, commit=False) / f"""
-                DELETE FROM `{self.EXCH_TBL_NAME}`
-            """
+            TriggerExchTbl._clear(q)
 
     def catch(self, qpars):
         if self.nothingToCatch(qpars): return
 
         q = self.dbobj
+        rs = TriggerExchTbl._getOrderedRawRows(q)
 
-        rs = q(notriggers=True) / f"""
-            SELECT * FROM `{self.EXCH_TBL_NAME}`
-            ORDER BY `id`
-        """
+        try:
+            bo = qpars['bindObject']
+            for r in rs:
+                tableName = r['table_name']
+                timing = r['timing']
+                evt = r['event']
+                trgData = json.loads(r['data'])
 
-        bo = qpars['bindObject']
-        for r in rs:
-            tableName = r['table_name']
-            timing = r['timing']
-            evt = r['event']
-            trgData = json.loads(r['data'])
+                cbn = timingEvtToCallbackName(timing, evt)
 
-            cbn = timingEvtToCallbackName(timing, evt)
-
-            try:
-                self.fire(bo, tableName, cbn, trgData)
-            except Exception as e:
-                msg = f"trigger callback `{cbn}' for table `{tableName}' failed"
-                msg += ": " + fmtExc(e, inclTraceback=self.debug)
-                self.logger.error(msg)
+                try:
+                    self.fire(bo, tableName, cbn, trgData)
+                except Exception as e:
+                    msg = f"trigger callback `{cbn}' for table `{tableName}' failed"
+                    msg += ": " + fmtExc(e, inclTraceback=self.debug)
+                    self.logger.error(msg)
+        finally:
+            TriggerExchTbl._clear(q)
