@@ -33,11 +33,13 @@ class Database_mysql(DatabaseSQL):
 
         try:
             qpars['cursor'] = cursor = self.connection.cursor()
+        except MySQLdb.OperationalError:
+            self.raiseDBConnectionError(f'could not get a cursor', e)
+
+        try:
             cursor.execute(r, args=args)
         except MySQLdb.OperationalError as e:
-            msg = fmtExc(e, inclTraceback=self.debug)
-            msg = f'failed to execute the query: {msg}'
-            self.logger.warning(msg)
+            self.raiseDBOperationalError(f'failed to execute the query', e)
             raise DBOperationalError(msg)
 
     def createDatabase(self):

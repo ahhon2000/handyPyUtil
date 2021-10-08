@@ -150,11 +150,12 @@ class Database(ClonableClass):
                 if attempt > 0:
                     self.logger.info(f"reconnection attempt #{attempt}")
                     self.reconnect()
-                    self.triggerManager.reinit()  # TODO revise the whole reinit sequence from up here to bottom
+                    if not notriggers:
+                        self.triggerManager.reinit()  # TODO revise the whole reinit sequence from up here to bottom
 
                 self.execQuery(qpars)
                 success = True
-            except DBOperationalError:
+            except DBConnectionError:
                 self.logger.warning(f'connection failure')
             except Exception as e:
                 raise self._rollbackOnExc(qpars, excIn=e, excOut=ExcExecQuery)
@@ -216,12 +217,18 @@ class Database(ClonableClass):
         self.dropDatabase()
         self.createDatabase()
 
-    def raiseDBOperationalError(self, msg0, e):
+    def raiseDBError(self, msg0, excIn, excOut):
         msg = msg0
-        msg += ': ' + fmtExc(e, inclTraceback=self.debug)
+        msg += ': ' + fmtExc(excIn, inclTraceback=self.debug)
         self.logger.warning(msg)
 
-        raise DBOperationalError(msg)
+        raise excOut(msg)
+
+    def raiseDBOperationalError(self, msg0, e):
+        self.raiseDBError(msg0, e, DBOperationalError)
+
+    def raiseDBConnectionError(self, msg0, e):
+        self.raiseDBError(msg0, e, DBConnectionError)
 
     """
     

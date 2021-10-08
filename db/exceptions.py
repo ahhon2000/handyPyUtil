@@ -2,6 +2,7 @@ from ..loggers.convenience import fmtExc
 
 class ExcRecordNotFound(Exception): pass
 class DBOperationalError(Exception): pass
+class DBConnectionError(Exception): pass
 
 class ExcExecute(Exception):
     DFLT_MSG = 'request failed'

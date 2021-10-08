@@ -70,11 +70,11 @@ class TriggerManagerSQL(TriggerManager):
                     `id`,
                     `table_name`, `timing`, `event`,
                     `data`
-                ) VALUES (
+                ) SELECT
                     (SELECT coalesce(max(id), 0) + 1 FROM `{exchTbl}`),
                     '{tbl}', '{timing}', '{evt}',
                     {data}
-                );
+                ;
             END;
         """
 
@@ -108,7 +108,10 @@ class TriggerManagerSQL(TriggerManager):
 
     def prepareForQuery(self, qpars):
         q = self.dbobj
-        q(notriggers=True, commit=False) / f"DELETE FROM `{self.EXCH_TBL_NAME}`"
+        if self.triggers:
+            q(notriggers=True, commit=False) / f"""
+                DELETE FROM `{self.EXCH_TBL_NAME}`
+            """
 
     def catch(self, qpars):
         if self.nothingToCatch(qpars): return

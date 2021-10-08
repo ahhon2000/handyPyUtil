@@ -48,22 +48,28 @@ class MyTableRow(TableRow):
         },
     }
 
-    def _beforeInsert(self, bo, trgData):
+    @classmethod
+    def _beforeInsert(Cls, bo, trgData):
         bo.record('beforeInsert', trgData)
 
-    def _beforeUpdate(self, bo, trgData):
+    @classmethod
+    def _beforeUpdate(Cls, bo, trgData):
         bo.record('beforeUpdate', trgData)
 
-    def _beforeDelete(self, bo, trgData):
+    @classmethod
+    def _beforeDelete(Cls, bo, trgData):
         bo.record('beforeDelete', trgData)
 
-    def _afterInsert(self, bo, trgData):
+    @classmethod
+    def _afterInsert(Cls, bo, trgData):
         bo.record('afterInsert', trgData)
 
-    def _afterUpdate(self, bo, trgData):
+    @classmethod
+    def _afterUpdate(Cls, bo, trgData):
         bo.record('afterUpdate', trgData)
 
-    def _afterDelete(self, bo, trgData):
+    @classmethod
+    def _afterDelete(Cls, bo, trgData):
         bo.record('afterDelete', trgData)
 
 

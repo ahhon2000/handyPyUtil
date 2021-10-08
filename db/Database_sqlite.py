@@ -49,7 +49,7 @@ class Database_sqlite(DatabaseSQL):
         try:
             qpars['cursor'] = cursor = self.connection.cursor()
         except (sqlite3.OperationalError, sqlite3.ProgrammingError) as e:
-            self.raiseDBOperationalError('connection problem', e)
+            self.raiseDBConnectionError('could not get a cursor', e)
 
         try:
             cursor.execute(r, args)

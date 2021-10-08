@@ -101,6 +101,6 @@ class TriggerManager:
         trgs = self.triggers
 
         for tableName2 in (None, tableName):
-            cbs = trgs.get(tableName2, {}).get(cbn, ()),
+            cbs = trgs.get(tableName2, {}).get(cbn, ())
             for cb in cbs:
                 cb(bindObject, trgData)
