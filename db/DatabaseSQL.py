@@ -63,8 +63,8 @@ class DatabaseSQL(Database):
         pk = tableRow._primaryKey
 
         pkv = getattr(tableRow, pk, None)
-        if pkv is None:
-            vs.pop(pk, None)
+        if pkv is None  or  not q.recordExists(tbl, pk, pkv):
+            if pkv is None: vs.pop(pk, None)
             cursor = q(returnCursor=True, commit=commit, **vs) / f"""
                 INSERT INTO `{tbl}` (
                     {
@@ -80,8 +80,10 @@ class DatabaseSQL(Database):
                     }
                 )
             """
-            vs[pk] = cursor.lastrowid
-            setattr(tableRow, pk, cursor.lastrowid)
+            if pkv is None:
+                pkv = cursor.lastrowid
+                setattr(tableRow, pk, pkv)
+            vs[pk] = pkv
         else:
             vs[pk] = pkv
             q(commit=commit, _pkv=pkv, **vs) / f"""

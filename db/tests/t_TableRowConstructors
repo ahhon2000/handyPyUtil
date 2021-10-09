@@ -30,7 +30,7 @@ class MyTableRow_pk_id(MyTableRow):
         },
     )
 
-class MyTableRow_pk_s:
+class MyTableRow_pk_s(MyTableRow):
     _primaryKey = 's'
     _tableName = 'my_table_row_pk_s'
     _columnDefs = dict(
@@ -44,8 +44,32 @@ class MyTableRow_pk_s:
     )
 
 def chkConstructors(tk, q, bo):
-    # TODO complete
-    pass
+    NRecords = 10
+
+    for Cls in (MyTableRow_pk_id, MyTableRow_pk_s):
+        q.createTable(Cls)
+        for i in range(NRecords):
+            pk = Cls._primaryKey
+            pkv = i + 1 if pk == 'id' else f"string_pk_{i+1}"
+
+            constr_kwarg = {'n': i**2}
+            if pk != 'id': constr_kwarg[pk] = pkv
+
+            mtr0 = Cls(bo, **constr_kwarg)
+            mtr0._save()
+            assert mtr0._bindObject is bo
+            assert getattr(mtr0, pk) == pkv
+            assert mtr0.n == i**2
+
+            mtrs = [mtr0] + [
+                Cls._fromPK(bo, pkv),
+                Cls._fromColVal(bo, pk, pkv),
+            ]
+            if pk == 'id':
+                mtrs.append(Cls._fromId(bo, pkv))
+
+            for mtr in mtrs:
+                assert mtr._same(mtr0)
 
 
 with TestKitDB() as tk:

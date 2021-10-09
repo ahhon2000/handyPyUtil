@@ -258,3 +258,4 @@ class Database(ClonableClass):
     def extractNamedPlaceholders(self, request): raise NotImplementedError()
     def RowToDictMaker(self, qpars): return lambda row: row
     def getColumns(self, tbl): raise NotImplementedError()
+    def recordExists(self, tbl, col, val): raise NotImplementedError()
