@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+from threading import Thread, Event, get_native_id
+
+from . import TestKitDB
+from ..Database import DBTYPES
+from .. import Database_mysql, Database_sqlite
+from ..exceptions import *
+
+with TestKitDB() as tk:
+    for DBCls in (
+        Database_sqlite,
+        Database_mysql,
+    ):
+        q = tk.connect(DBCls=DBCls)
+
+        done = Event()
+        wrongThreadDetected = False
+        
+        def w():
+            global q, wrongThreadDetected
+
+            try:
+                q / "SELECT 1"
+            except ExcWrongThread:
+                wrongThreadDetected = True
+            except Exception as e:
+                tk.logger.error(f"query failed: {e}")
+
+            done.set()
+
+        th = Thread(target=w)
+        th.start()
+
+        done.wait(0.1)
+        assert wrongThreadDetected

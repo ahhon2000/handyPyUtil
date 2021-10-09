@@ -1,6 +1,7 @@
 import time
 from enum import Enum
 from more_itertools import islice_extended
+import threading
 
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
@@ -60,7 +61,7 @@ class Database(ClonableClass):
             TrgMgrCls = TriggerManager
         self.triggerManager = trgMgr = TrgMgrCls(self)
 
-        # TODO make sure execute() is called from the same thread as __init__()
+        self.threadId = threading.get_native_id()
 
         if connect: self.reconnect()
 
@@ -135,6 +136,9 @@ class Database(ClonableClass):
 
         # The values of variables set before this line will be copied to qpars
         qpars = {vn: v for vn, v in locals().items()}
+
+        if self.threadId != threading.get_native_id():
+            raise ExcWrongThread(f'execute() was called from the wrong thread')
 
         trgMgr = self.triggerManager
 
