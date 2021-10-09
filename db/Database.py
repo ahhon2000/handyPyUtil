@@ -155,7 +155,7 @@ class Database(ClonableClass):
                     self.logger.info(f"reconnection attempt #{attempt}")
                     self.reconnect()
                     if not notriggers:
-                        self.triggerManager.reinit()  # TODO revise the whole reinit sequence from up here to bottom
+                        self.triggerManager.reinit()
 
                 self.execQuery(qpars)
                 success = True
