@@ -148,3 +148,14 @@ class DatabaseSQL(Database):
         ]
 
         return cols
+
+    def recordExists(self, tbl, col, val):
+        e = self(val=val)[0]['e'] / f"""
+            SELECT EXISTS (
+                SELECT 1 FROM `{tbl}`
+                WHERE `{col}` = %(val)s
+                LIMIT 1
+            ) as e
+        """
+
+        return bool(e)

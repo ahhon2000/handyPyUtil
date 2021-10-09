@@ -47,6 +47,7 @@ def chkConstructors(tk, q, bo):
     NRecords = 10
 
     for Cls in (MyTableRow_pk_id, MyTableRow_pk_s):
+        tbl = Cls._tableName
         q.createTable(Cls)
         for i in range(NRecords):
             pk = Cls._primaryKey
@@ -61,9 +62,13 @@ def chkConstructors(tk, q, bo):
             assert getattr(mtr0, pk) == pkv
             assert mtr0.n == i**2
 
+            row = q(pkv=pkv)[0] / f"""
+                SELECT * FROM `{tbl}` WHERE `{pk}` = %(pkv)s
+            """
             mtrs = [mtr0] + [
                 Cls._fromPK(bo, pkv),
                 Cls._fromColVal(bo, pk, pkv),
+                Cls._fromRow(bo, row)
             ]
             if pk == 'id':
                 mtrs.append(Cls._fromId(bo, pkv))

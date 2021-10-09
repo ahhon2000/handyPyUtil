@@ -71,14 +71,3 @@ class Database_sqlite(DatabaseSQL):
 
     def RowToDictMaker(self, qpars):
         return lambda r: {k: r[k] for k in r.keys()}
-
-    def recordExists(self, tbl, col, val):
-        e = self(val=val)[0]['e'] / f"""
-            SELECT EXISTS (
-                SELECT 1 FROM `{tbl}`
-                WHERE `{col}` = %(val)s
-                LIMIT 1
-            ) as e
-        """
-
-        return bool(e)
