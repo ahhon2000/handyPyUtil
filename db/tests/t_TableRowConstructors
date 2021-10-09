@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+from copy import deepcopy
+
+from . import TestKitDB
+from ..Database import DBTYPES
+from .. import Database_mysql, Database_sqlite
+from ..TableRow import TableRow
+
+class MyTableRow(TableRow):
+    _columnDefs = {
+        'n': {
+            DBTYPES.sqlite: 'INTEGER NOT NULL DEFAULT 0',
+            DBTYPES.mysql: 'INTEGER NOT NULL DEFAULT 0',
+        },
+    }
+
+class MyTableRow_pk_id(MyTableRow):
+    _tableName = 'my_table_row_pk_id'
+    _columnDefs = dict(
+        MyTableRow._columnDefs,
+        **{
+            'id': {
+                DBTYPES.sqlite: 'INTEGER NOT NULL PRIMARY KEY',
+                DBTYPES.mysql: 'INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
+            },
+        },
+    )
+
+class MyTableRow_pk_s:
+    _primaryKey = 's'
+    _tableName = 'my_table_row_pk_s'
+    _columnDefs = dict(
+        MyTableRow._columnDefs,
+        **{
+            's': {
+                DBTYPES.sqlite: 'VARCHAR(14) NOT NULL PRIMARY KEY',
+                DBTYPES.mysql: 'VARCHAR(14) NOT NULL PRIMARY KEY',
+            },
+        },
+    )
+
+def chkConstructors(tk, q, bo):
+    # TODO complete
+    pass
+
+
+with TestKitDB() as tk:
+    for DBCls in (
+        Database_sqlite,
+        Database_mysql,
+    ):
+        q = tk.connect(DBCls=DBCls)
+
+        class BindObject: pass
+        bo = BindObject()
+        bo.dbobj = q
+
+        chkConstructors(tk, q, bo)
