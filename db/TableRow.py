@@ -33,6 +33,7 @@ class TableRow:
     _indexDefs = {}   # format:  {indname: {dbtype: (col1, col2, ...)}}
     _tableName = ''
     _primaryKey = 'id'
+    _constraints = {}  # format:  {dbtype: ["constr1", "constr2", ..], ...}
 
     def __init__(self, _bindObject,
         _dbobj = None,
@@ -133,3 +134,19 @@ class TableRow:
     def _isEmpty(Cls, q):
         n = Cls._nRecords(q)
         return n == 0
+
+    def _getDynamicConstraints(self):
+        """
+        Return a dictionary of constraints to be used just before table creation
+
+        The format of the returned dictionary:
+        {
+            DBTYPE1: (CONSTR1, CONSTR2, ...),
+            DBTYPE2: (CONSTR1, CONSTR2, ...),
+            ...
+        }
+
+        Each CONSTR element is a string
+        """
+
+        return {}

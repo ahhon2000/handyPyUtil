@@ -1,3 +1,5 @@
+from itertools import chain
+
 from .Database import Database, DBTYPES
 from . import TriggerManagerSQL
 from .exceptions import *
@@ -37,9 +39,17 @@ class DatabaseSQL(Database):
         tbl = tableRow._tableName
 
         cols = ', '.join(
-            f"`{cname}` {cdef[dbtype]}"
-                for cname, cdef in tableRow._columnDefs.items()
+            chain(
+                (
+                    f"`{cname}` {cdef[dbtype]}"
+                        for cname, cdef in tableRow._columnDefs.items()
+                ),
+                tableRow._constraints.get(dbtype, ()),
+                tableRow._getDynamicConstraints().get(dbtype, ()),
+            )
         )
+        # TODO write a test for: 1) static constraints; 2) dynamic constraints
+
         q(notriggers=True) / f"""CREATE TABLE IF NOT EXISTS `{tbl}` ({cols})"""
 
     def createIndices(self, tableRow):
