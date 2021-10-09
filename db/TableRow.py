@@ -86,3 +86,13 @@ class TableRow:
 
     def _copy(self):
         return copy.copy(self)
+
+    @classmethod
+    def _nRecords(Cls, q):
+        col = next(iter(Cls._columnDefs))
+        return q[0]['n'] / f"SELECT count(`{col}`) as n FROM `{Cls._tableName}`"
+
+    @classmethod
+    def _isEmpty(Cls, q):
+        n = Cls._nRecords(q)
+        return n == 0

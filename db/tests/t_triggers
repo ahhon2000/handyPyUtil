@@ -6,14 +6,14 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 import sys
 import os
 from pathlib import Path
+from math import isclose
 
 from . import TestKitDB
 from ..Database import DBTYPES
 from .. import Database_mysql, Database_sqlite
 
-from math import isclose
-
 from ..TableRow import TableRow
+from .. import TriggerExchTbl
 from ..exceptions import *
 
 
@@ -168,7 +168,7 @@ def installTriggers(tk, q):
     def beforeUpdate(bo, trgData): bo.record('beforeUpdate', trgData)
     def afterUpdate(bo, trgData): bo.record('afterUpdate', trgData)
     def beforeDelete(bo, trgData): bo.record('beforeDelete', trgData)
-    def afterDelete(bo, trgData): bo.record('afterDelet', trgData)
+    def afterDelete(bo, trgData): bo.record('afterDelete', trgData)
 
     assert not allTriggersExist(tk, q, MyTableRow3._tableName)
     q.triggerManager.connectCallbacks(MyTableRow3._tableName,
@@ -181,7 +181,7 @@ def installTriggers(tk, q):
 
     tk.logger.debug(f'finished trigger installation')
 
-def chkTriggers(tk, q, bo):
+def chkFiring(tk, q, bo):
     assert len(bo.calls) == 0
 
     orig_mtrs = {
@@ -189,8 +189,11 @@ def chkTriggers(tk, q, bo):
             for Cls in classes
     }
 
+    # Check UPDATEs
+
     for clind, Cls in enumerate(classes):
-        for Id in range(1, len(orig_mtrs[Cls])+1):
+        NOrigMTRS = len(orig_mtrs[Cls])
+        for Id in range(1, NOrigMTRS+1):
             r0 = Cls(bo, _fromId=Id)
             q(commit=False, Id=Id) / f"""
                 UPDATE {Cls._tableName} SET n = n + 1, x = x + 1,
@@ -220,6 +223,73 @@ def chkTriggers(tk, q, bo):
             assert isclose(r0.x + 1, r1.x)
             assert r0.s + 'z' == r1.s
 
+            # make sure records that were not updated are intact
+            assert all(
+                Cls(bo, _fromId=Id2)._same(orig_mtrs[Cls][Id2])
+                    for Id2 in range(Id+1, NOrigMTRS + 1)
+            )
+
+    assert TriggerExchTbl._isEmpty(q)
+    q.commit()
+    assert TriggerExchTbl._isEmpty(q)
+
+    # Check INSERTs
+
+    NCalls0 = len(bo.calls)
+    for n, Cls in enumerate(classes):
+        NRecords0 = Cls._nRecords(q)
+        x, s = 1 / (n + 1), f"insert_{n}"
+        q(n=n, x=x, s=s) / f"""
+            INSERT INTO `{Cls._tableName}`
+            (n, x, s) VALUES (%(n)s, %(x)s, %(s)s)
+        """
+
+        NRecords = Cls._nRecords(q)
+        assert NRecords == NRecords0 + 1
+
+        NCalls = len(bo.calls)
+        assert NCalls == NCalls0 + 2 * (n + 1)
+        assert TriggerExchTbl._isEmpty(q)
+
+        for callInd, cbn in ((-1, 'afterInsert'), (-2, 'beforeInsert')):
+            trgData = bo.calls[callInd]['trgData']
+            assert bo.calls[callInd]['cbn'] == cbn
+            assert not trgData.get('OLD')
+            rNew = Cls(bo, _fromRow=trgData['NEW'])
+            r = Cls(bo, n=n, x=x, s=s)
+            assert not r._same(rNew)
+
+    # Check DELETEs
+
+    NCalls0 = len(bo.calls)
+    for nDeletes, Cls in enumerate(classes, start=1):
+        NRecords0 = Cls._nRecords(q)
+        rmId = 5
+        q(rmId=rmId) / f"""
+            DELETE FROM `{Cls._tableName}`
+            WHERE id = %(rmId)s
+        """
+        NRecords = Cls._nRecords(q)
+
+        assert NRecords == NRecords0 - 1
+        NCalls = len(bo.calls)
+        assert NCalls == NCalls0 + 2 * nDeletes
+
+        for callInd, cbn0 in ((-1, 'afterDelete'), (-2, 'beforeDelete')):
+            trgData = bo.calls[callInd]['trgData']
+            cbn = bo.calls[callInd]['cbn']
+            assert cbn0 == cbn, f'cbn0={cbn0}; cbn={cbn}'
+            assert not trgData.get('NEW')
+            rOld = Cls(bo, _fromRow=trgData['OLD'])
+            r0 = orig_mtrs[Cls][rmId]
+            assert not r0._same(rOld)
+
+
+def chkDropTrigger(tk, q, bo):
+    # TODO implement
+    pass
+
+
         
 class BindObject:
     def __init__(self):
@@ -243,5 +313,6 @@ with TestKitDB() as tk:
         
         populate(tk, q)
         installTriggers(tk, q)
-        chkTriggers(tk, q, bo)
+        chkFiring(tk, q, bo)
+        chkDropTrigger(tk, q, bo)
         tk.logger.debug(f'finished the test case of {DBCls}')
