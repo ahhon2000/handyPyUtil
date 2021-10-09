@@ -29,14 +29,10 @@ class TriggerManagerSQL(TriggerManager):
         TriggerExchTbl._create(self.dbobj)
         self._ready = True
 
-    def createTrigger(self, tbl, trpar):
-        timing, evt = trpar.get('timing', ''), trpar.get('event', '')
-        cbn = timingEvtToCallbackName(timing, evt)
-        if cbn not in self.AVAILABLE_CALLBACKS: raise Exception(f'illegal value of timing and/or event')
+    def _createTrigger1(self, tbl, timing, evt):
         if not tbl: raise Exception(f'no table name given')
 
         q = self.dbobj
-
         trgn = getTriggerName(tbl, timing, evt)
 
         cols = q.getColumns(tbl)
@@ -51,7 +47,6 @@ class TriggerManagerSQL(TriggerManager):
 
         pathValues = []
         for rowType in rowTypes:
-            #pathValues.append((f'$.{rowType}', "json_set('{}')"))
             for col in cols:
                 pathValues.append(
                     (f'$.{rowType}.{col}', f'{rowType}.`{col}`')
@@ -79,11 +74,35 @@ class TriggerManagerSQL(TriggerManager):
         """
 
         q(notriggers=True) / req
-        #self.logger.debug(f'created trigger "{trgn}" with the following request:\n{req}')
+
+    def createTrigger(self, tbl, trpar):
+        timing, evt = trpar.get('timing', ''), trpar.get('event', '')
+        cbn = timingEvtToCallbackName(timing, evt)
+        if cbn not in self.AVAILABLE_CALLBACKS: raise Exception(f'illegal value of timing and/or event')
+
+        if not tbl  and  tbl is not None:
+            raise Exception(f'invalid argument tbl={tbl}')
+
+        tbls = None
+        if tbl is None:
+            raise NotImplementedError(f'creating global triggers is not supported')
+        else:
+            tbls = (tbl,)
+
+        for tbl in tbls:
+            self._createTrigger1(tbl, timing, evt)
 
     def dropTrigger(self, tbl, trpar):
-        # TODO complete
-        assert 0
+        timing = trpar.get('timing')
+        evt = trpar.get('event')
+        if not timing: raise Exception(f'the timing parameter is missing')
+        if not evt: raise Exception(f'the event parameter is missing')
+        trgn = getTriggerName(tbl, timing, evt)
+
+        self.logger.debug(f'dropping trigger: {trgn}')
+        self.dbobj(notriggers=True) / f"""
+            DROP TRIGGER IF EXISTS `{trgn}`
+        """
 
     def dropTmpTbl(self):
         self.dbobj(notriggers=True) / f"""

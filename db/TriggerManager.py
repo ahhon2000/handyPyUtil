@@ -32,9 +32,6 @@ class TriggerManager:
         defined as class methods of that class, if they exist.
         Then connect the callbacks in the `callbacks' dictionary, if any.
 
-        If tbl is None or '*' each callback will be associated with all DB
-        tables.
-
         The `callbacks' dictionary may contain any of the callbacks listed in
         in the AVAILABLE_CALLBACKS attribute. Note that trigger-callback names
         in TableRow and its subclasses must be prepended with an underscore
@@ -64,7 +61,6 @@ class TriggerManager:
         # determine the table name
         tableName = None
         if TRCls: tableName = TRCls._tableName
-        elif tbl == '*': tableName = None
         elif isinstance(tbl, str): tableName = tbl
         else: raise Exception(f'illegal value of argument "tbl"')
 

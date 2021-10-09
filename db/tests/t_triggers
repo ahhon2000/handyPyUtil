@@ -286,9 +286,29 @@ def chkFiring(tk, q, bo):
 
 
 def chkDropTrigger(tk, q, bo):
-    # TODO implement
-    pass
+    NCalls0 = len(bo.calls)
 
+    Cls = MyTableRow
+    tbl = Cls._tableName
+    updId = 1
+    r0 = Cls(q, _fromId=updId)
+
+    q.triggerManager.dropTrigger(tbl, {'timing': 'BEFORE', 'event': 'UPDATE'})
+
+    q(updId=updId) / f"UPDATE `{tbl}` set s = 'notrigger' WHERE id=%(updId)s"
+
+    NCalls = len(bo.calls)
+
+    assert NCalls == NCalls0 + 1, f'NCalls0 = {NCalls0}; NCalls = {NCalls}'
+    trgData = bo.calls[-1]['trgData']
+    cbn = bo.calls[-1]['cbn']
+    assert cbn == 'afterUpdate'
+
+    rOld, rNew = (Cls(q, _fromRow=r) for r in (trgData['OLD'], trgData['NEW']))
+    r = Cls(q, _fromId=updId)
+    assert rOld._same(r0)
+    assert rNew._same(r)
+    assert r._same(Cls(q, id=updId, n=r.n, x=r.x, s='notrigger'))
 
         
 class BindObject:
