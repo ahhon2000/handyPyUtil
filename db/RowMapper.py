@@ -27,11 +27,11 @@ def RowMapper(qpars):
             cast(carg, r, **ckwarg)
 
         - if cast is a descendant of the TableRow class then each row will be
-        passed on to the cast function as the keyword argument `_fromRow' and
-        the constructor will receive bindObject as the first argument:
+        passed on to the _fromRow method of that class along with
+        bindObject as the first argument:
 
-            cast(bindObject, *carg, _fromRow=r, **ckwarg)  # carg is tuple/list
-            cast(bindObject, carg, _fromRow=r, **ckwarg)   # carg is smth else
+            cast._fromRow(bindObject, *carg, r, **ckwarg)  # carg is tuple/list
+            cast._fromRow(bindObject, carg, r, **ckwarg)   # carg is smth else
 
     Note that execute() is supposed to know which object to bind
     TableRow instances to.
@@ -52,13 +52,13 @@ def RowMapper(qpars):
     Examples:
 
         execute("some query", cast=TableRow)
-        # Convert each row r to TableRow(bindObject, _fromRow=r)
+        # Convert each row r to TableRow._fromRow(bindObject, r)
 
         execute("some query", cast=print, carg=("Row:",))
         # Call  print("Row:", r) for each row r
 
         execute("some query", cast=TableRowChild, carg=14)
-        # Convert each row r to TableRowChild(bindObject, 14, _fromRow=r)
+        # Convert each row r to TableRowChild._fromRow(bindObject, 14, r)
 
         execute("some query",
             cmpst_cast =  (f,         TableRow,  g),
@@ -66,7 +66,7 @@ def RowMapper(qpars):
             cmpst_kwarg = ({'x': 10}, {},       {}),
         )
         # Convert each row r to
-        #    f(TableRow(bindObject, _fromRow=g(r)), x=10)
+        #    f(TableRow._fromRow(bindObject, g(r)), x=10)
     """
 
     cast = qpars.get('cast', None)
@@ -101,7 +101,7 @@ def RowMapper(qpars):
         g = None
         if isinstance(f, type) and issubclass(f, TableRow):
             g = lambda r, bindObject=bindObject, f=f, arg=arg, kwarg=kwarg: \
-                f(bindObject, *arg, _fromRow = r, **kwarg)
+                f._fromRow(bindObject, *arg, r, **kwarg)
         else:
             g = lambda r, f=f, arg=arg, kwarg=kwarg: f(*arg, r, **kwarg)
         gs.append(g)

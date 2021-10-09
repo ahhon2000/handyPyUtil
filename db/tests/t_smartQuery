@@ -116,6 +116,7 @@ class VegTR(TableRow):
     _columnDefs = {
         'id': {},
         'name': {},
+        'x': {}, 'y': {},
     }
     def __init__(self, bo, *arg, **kwarg):
         super().__init__(bo, **kwarg)

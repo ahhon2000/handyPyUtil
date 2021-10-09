@@ -94,15 +94,6 @@ def chkAllTablesAgainstOriginalData(tk, q):
         for mtr in getAllRecords(tk, q, Cls):
             chkAgainstOriginalData(mtr.id, mtr)
 
-
-def idSearchFails(qq, Id):
-    fails = False
-    try:
-        MyTableRow(qq, _fromId=Id)
-    except ExcRecordNotFound:
-        fails = True
-    return fails
-
 def getNRecords(q):
     return q[0]['n'] / f'SELECT count(id) as n FROM {MyTableRow._tableName}'
 
@@ -194,7 +185,7 @@ def chkFiring(tk, q, bo):
     for clind, Cls in enumerate(classes):
         NOrigMTRS = len(orig_mtrs[Cls])
         for Id in range(1, NOrigMTRS+1):
-            r0 = Cls(bo, _fromId=Id)
+            r0 = Cls._fromId(bo, Id)
             q(commit=False, Id=Id) / f"""
                 UPDATE {Cls._tableName} SET n = n + 1, x = x + 1,
                     s = {
@@ -202,7 +193,7 @@ def chkFiring(tk, q, bo):
                     }
                 WHERE id = %(Id)s
             """
-            r1 = MyTableRow(bo, _fromId=Id)
+            r1 = MyTableRow._fromId(bo, Id)
             assert r0._same(orig_mtrs[Cls][Id])
             assert not r0._same(r1)
 
@@ -214,7 +205,7 @@ def chkFiring(tk, q, bo):
             assert cbn == 'beforeUpdate'
 
             rOld, rNew = map(
-                lambda r: MyTableRow(bo, _fromRow=r), (trgData['OLD'], trgData['NEW'])
+                lambda r: MyTableRow._fromRow(bo, r), (trgData['OLD'], trgData['NEW'])
             )
             assert r0._same(rOld)
             assert r1._same(rNew)
@@ -225,7 +216,7 @@ def chkFiring(tk, q, bo):
 
             # make sure records that were not updated are intact
             assert all(
-                Cls(bo, _fromId=Id2)._same(orig_mtrs[Cls][Id2])
+                Cls._fromId(bo, Id2)._same(orig_mtrs[Cls][Id2])
                     for Id2 in range(Id+1, NOrigMTRS + 1)
             )
 
@@ -255,7 +246,7 @@ def chkFiring(tk, q, bo):
             trgData = bo.calls[callInd]['trgData']
             assert bo.calls[callInd]['cbn'] == cbn
             assert not trgData.get('OLD')
-            rNew = Cls(bo, _fromRow=trgData['NEW'])
+            rNew = Cls._fromRow(bo, trgData['NEW'])
             r = Cls(bo, n=n, x=x, s=s)
             assert not r._same(rNew)
 
@@ -280,7 +271,7 @@ def chkFiring(tk, q, bo):
             cbn = bo.calls[callInd]['cbn']
             assert cbn0 == cbn, f'cbn0={cbn0}; cbn={cbn}'
             assert not trgData.get('NEW')
-            rOld = Cls(bo, _fromRow=trgData['OLD'])
+            rOld = Cls._fromRow(bo, trgData['OLD'])
             r0 = orig_mtrs[Cls][rmId]
             assert not r0._same(rOld)
 
@@ -291,7 +282,7 @@ def chkDropTrigger(tk, q, bo):
     Cls = MyTableRow
     tbl = Cls._tableName
     updId = 1
-    r0 = Cls(q, _fromId=updId)
+    r0 = Cls._fromId(q, updId)
 
     q.triggerManager.dropTrigger(tbl, {'timing': 'BEFORE', 'event': 'UPDATE'})
 
@@ -304,8 +295,8 @@ def chkDropTrigger(tk, q, bo):
     cbn = bo.calls[-1]['cbn']
     assert cbn == 'afterUpdate'
 
-    rOld, rNew = (Cls(q, _fromRow=r) for r in (trgData['OLD'], trgData['NEW']))
-    r = Cls(q, _fromId=updId)
+    rOld, rNew = (Cls._fromRow(q, r) for r in (trgData['OLD'], trgData['NEW']))
+    r = Cls._fromId(q, updId)
     assert rOld._same(r0)
     assert rNew._same(r)
     assert r._same(Cls(q, id=updId, n=r.n, x=r.x, s='notrigger'))

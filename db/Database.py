@@ -247,6 +247,7 @@ class Database(ClonableClass):
     def fetchRows(self, qpars): raise NotImplementedError()
     def commitAfterQuery(self, qpars): pass
     def rollback(self): self.connection.rollback()
+    def getRowByColVal(self, tbl, col, val): raise NotImplementedError()
     def getRowById(self, tbl, Id): raise NotImplementedError()
     def createTable(self, tableRow): raise NotImplementedError()
     def createIndices(self, tableRow): raise NotImplementedError()

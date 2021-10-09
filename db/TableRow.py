@@ -2,6 +2,24 @@ from math import isclose
 import copy
 
 from . import Database
+from .exceptions import *
+
+
+def _getDBObj(*arg):
+    for a in arg:
+        if isinstance(a, Database): return a
+        if not a: continue
+
+        if isinstance(a, dict):
+            candidate = a.get('_dbobj')
+            if isinstance(candidate, Database): return candidate
+
+        for k in ('q', '_dbobj', 'db', 'database', 'dbobj',):
+            candidate = getattr(a, k, None)
+            if candidate and isinstance(candidate, Database):
+                return candidate
+
+    raise Exception(f'could not find a Database instance')
 
 
 class TableRow:
@@ -14,42 +32,58 @@ class TableRow:
     _columnDefs = {}  # format:  {colname: {dbtype: coldef}}
     _indexDefs = {}   # format:  {indname: {dbtype: (col1, col2, ...)}}
     _tableName = ''
+    _primaryKey = 'id'
 
-    def __init__(self, _bindObject, _fromRow=None, _fromId=None, _dbobj=None,
+    def __init__(self, _bindObject,
+        _dbobj = None,
         **fieldVals,
     ):
         self._bindObject = _bindObject
         self._flgDeleted = False
-        
-        if not _dbobj:
-            if isinstance(_bindObject, Database):
-                _dbobj = _bindObject
-            else:
-                for k in ('q', '_dbobj', 'db', 'database', 'dbobj',):
-                    q = getattr(_bindObject, k, None)
-                    if q and isinstance(q, Database):
-                            _dbobj = q
-                            break
-            if not _dbobj: raise Exception(f'could not find a Database instance')
-
-        self._dbobj = q = _dbobj
-
-        if _fromRow and _fromId:
-            raise Exception(f'_fromRow and _fromId cannot be used together')
-
+        self._dbobj = q = _getDBObj(_dbobj, _bindObject)
         tbl = self._tableName
 
-        fs = None
-        if _fromRow:
-            fs = _fromRow
-        elif _fromId:
-            fs = q.getRowById(tbl, _fromId)
-        else:
-            fs = fieldVals
+        fs = fieldVals
 
         for k in fs.keys():
             if k not in self._columnDefs: raise Exception(f'table `{tbl}` does not have a column named `{k}`')
             setattr(self, k, fs[k])
+
+    @classmethod
+    def _fromColVal(Cls, bo, col, val, *arg, **kwarg):
+        """Return a TableRow with the given column value
+
+        Return None if the record can't be found in the DB
+        """
+
+        _dbobj = _getDBObj(kwarg, bo)
+        kwarg['_dbobj'] = _dbobj  # to help the TableRow constructor find _dbobj
+
+        try:
+            fs = _dbobj.getRowByColVal(Cls._tableName, col, val)
+        except ExcRecordNotFound:
+            return None
+
+        return Cls(bo, *arg, **fs, **kwarg)
+
+    @classmethod
+    def _fromPK(Cls, bo, pkv, *arg, **kwarg):
+        """Return the TableRow whose primary key equals pkv
+
+        Return None if the record can't be found in the DB
+        """
+
+        pk = Cls._primaryKey
+        return Cls._fromColVal(bo, pk, pkv, *arg, **kwarg)
+
+    @classmethod
+    def _fromId(Cls, bo, Id, *arg, **kwarg):
+        return Cls._fromColVal(bo, 'id', Id, *arg, **kwarg)
+
+    @classmethod
+    def _fromRow(Cls, bo, *arg, **kwarg):
+        row = arg[-1]
+        return Cls(bo, *(arg[0:-1]), **row, **kwarg)
 
     def _getValues(self):
         return dict(
@@ -86,6 +120,9 @@ class TableRow:
 
     def _copy(self):
         return copy.copy(self)
+
+    def _deepcopy(self):
+        return copy.deepcopy(self)
 
     @classmethod
     def _nRecords(Cls, q):

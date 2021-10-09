@@ -18,12 +18,18 @@ class DatabaseSQL(Database):
         if cursor.description is None:
             self.connection.commit()
 
-    def getRowById(self, tbl, Id):
+    def getRowByColVal(self, tbl, col, val):
         q = self.q
-        rows = q(aslist=True, Id=Id)/ f"SELECT * FROM `{tbl}` WHERE `id`=%(Id)s"
+        rows = q(aslist=True, val=val)/ f"""
+            SELECT * FROM `{tbl}` WHERE `{col}`=%(val)s
+            LIMIT 1
+        """
 
-        if not rows: raise ExcRecordNotFound(f'no record with id={Id}')
+        if not rows: raise ExcRecordNotFound(f'no record with {col}={val}')
         return rows[0]
+
+    def getRowById(self, tbl, Id):
+        return self.getRowByColVal(tbl, 'id', Id)
 
     def createTable(self, tableRow):
         q = self
@@ -54,10 +60,11 @@ class DatabaseSQL(Database):
         vs = tableRow._getValues()
         sks = sorted(vs)
         tbl = tableRow._tableName
+        pk = tableRow._primaryKey
 
-        Id = getattr(tableRow, 'id', None)
-        if Id is None:
-            vs.pop('id', None)
+        pkv = getattr(tableRow, pk, None)
+        if pkv is None:
+            vs.pop(pk, None)
             cursor = q(returnCursor=True, commit=commit, **vs) / f"""
                 INSERT INTO `{tbl}` (
                     {
@@ -73,11 +80,11 @@ class DatabaseSQL(Database):
                     }
                 )
             """
-            vs['id'] = cursor.lastrowid
-            setattr(tableRow, 'id', cursor.lastrowid)
+            vs[pk] = cursor.lastrowid
+            setattr(tableRow, pk, cursor.lastrowid)
         else:
-            vs['id'] = Id
-            q(commit=commit, **vs) / f"""
+            vs[pk] = pkv
+            q(commit=commit, _pkv=pkv, **vs) / f"""
                 UPDATE `{tbl}` SET
                     {
                         ", ".join(
@@ -85,32 +92,33 @@ class DatabaseSQL(Database):
                                 for col in tableRow._columnDefs
                         )
                     }
-                WHERE `id` = %(id)s
+                WHERE `{pk}` = %(_pkv)s
                 LIMIT 1
             """
 
         if len(vs) != len(tableRow._columnDefs):
             ks = set(tableRow._columnDefs) - set(vs)
-            row = q(0, commit=commit, **vs) / f"""
+            row = q(0, commit=commit, _pkv=pkv, **vs) / f"""
                 SELECT {
                     ', '.join(
                         f'`{k}`' for k in ks
                     )
                 }
                 FROM `{tbl}`
-                WHERE `id` = %(id)s
+                WHERE `{pk}` = %(_pkv)s
             """
 
             for k in row.keys():
                 setattr(tableRow, k, row[k])
 
     def deleteTableRow(self, tableRow, commit=True):
-        Id = getattr(tableRow, 'id')
         tbl = tableRow._tableName
+        pk = tableRow._primaryKey
+        pkv = getattr(tableRow, pk)
 
-        self(Id = Id, commit=commit) / f"""
+        self(_pkv=pkv, commit=commit) / f"""
             DELETE FROM `{tbl}`
-            WHERE `id` = %(Id)s
+            WHERE `{pk}` = %(_pkv)s
             LIMIT 1
         """
         
