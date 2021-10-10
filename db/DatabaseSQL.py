@@ -33,31 +33,31 @@ class DatabaseSQL(Database):
     def getRowById(self, tbl, Id):
         return self.getRowByColVal(tbl, 'id', Id)
 
-    def createTable(self, tableRow):
+    def createTable(self, TableRowCls):
         q = self
         dbtype = self.dbtype
-        tbl = tableRow._tableName
+        tbl = TableRowCls._tableName
 
         cols = ', '.join(
             chain(
                 (
                     f"`{cname}` {cdef[dbtype]}"
-                        for cname, cdef in tableRow._columnDefs.items()
+                        for cname, cdef in TableRowCls._columnDefs.items()
                 ),
-                tableRow._constraints.get(dbtype, ()),
-                tableRow._getDynamicConstraints().get(dbtype, ()),
+                TableRowCls._constraints.get(dbtype, ()),
+                TableRowCls._getDynamicConstraints().get(dbtype, ()),
             )
         )
         # TODO write a test for: 1) static constraints; 2) dynamic constraints
 
         q(notriggers=True) / f"""CREATE TABLE IF NOT EXISTS `{tbl}` ({cols})"""
 
-    def createIndices(self, tableRow):
+    def createIndices(self, TableRowCls):
         q = self
         dbtype = self.dbtype
-        tbl = tableRow._tableName
+        tbl = TableRowCls._tableName
 
-        for iname, idef in tableRow._indexDefs.items():
+        for iname, idef in TableRowCls._indexDefs.items():
             q / f"""
                 CREATE INDEX IF NOT EXISTS {iname}
                 ON `{tbl}` ({

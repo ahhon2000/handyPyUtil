@@ -135,7 +135,8 @@ class TableRow:
         n = Cls._nRecords(q)
         return n == 0
 
-    def _getDynamicConstraints(self):
+    @classmethod
+    def _getDynamicConstraints(Cls):
         """
         Return a dictionary of constraints to be used just before table creation
 
