@@ -8,3 +8,10 @@ def fmtExc(e, msg="", inclTraceback=True):
         )
 
     return msg
+
+def fmtStack(msg=""):
+    "Return the stack as a string. Include msg as the first line, if given"
+
+    if msg: msg += "\n"
+    msg += "\n".join(traceback.format_stack())
+    return msg

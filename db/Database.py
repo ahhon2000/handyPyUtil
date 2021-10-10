@@ -5,7 +5,7 @@ import threading
 
 from ..classes import ClonableClass
 from ..loggers import addStdLogger
-from ..loggers.convenience import fmtExc
+from ..loggers.convenience import fmtExc, fmtStack
 
 from .exceptions import *
 
@@ -138,7 +138,9 @@ class Database(ClonableClass):
         qpars = {vn: v for vn, v in locals().items()}
 
         if self.threadId != threading.get_native_id():
-            raise ExcWrongThread(f'execute() was called from the wrong thread')
+            msg = f'execute() can only be called by the thread which initialised Database'
+            if self.debug: msg = fmtStack(msg)
+            raise ExcWrongThread(msg)
 
         trgMgr = self.triggerManager
 
