@@ -110,7 +110,7 @@ class DatabaseSQL(Database):
 
         if len(vs) != len(tableRow._columnDefs):
             ks = set(tableRow._columnDefs) - set(vs)
-            row = q(0, commit=commit, _pkv=pkv, **vs) / f"""
+            row = q(commit=commit, _pkv=pkv)[0] / f"""
                 SELECT {
                     ', '.join(
                         f'`{k}`' for k in ks
