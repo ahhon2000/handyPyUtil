@@ -41,6 +41,7 @@ class TestKitDB(TestKit):
 
     def cleanup(self, *arg, **kwarg):
         self._cleanupDatabases()
+        super().cleanup(*arg, **kwarg)
 
     def _cleanupDatabases(self):
         dbs = self.databases
