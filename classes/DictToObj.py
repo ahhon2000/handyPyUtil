@@ -1,4 +1,4 @@
-class DictToObject:
+class DictToObj:
     """Convert a dictionary to an object by mapping keys to attributes
     """
 
