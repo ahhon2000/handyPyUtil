@@ -30,7 +30,7 @@ class PlaceholderGenerator:
         return self._positional
 
     def __getattr__(self, a):
-        if a[0] == '_':
+        if a and a[0] == '_':
             return self.__getattribute__(a)
 
         p = self._enclose(a)
