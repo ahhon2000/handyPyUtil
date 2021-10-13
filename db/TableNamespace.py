@@ -54,10 +54,13 @@ class TableNamespace(SmartQuery):
         q / f"SELECT * FROM {{purchases}} WHERE {col} = 5"
     """
 
+    def __init__(self, *arg, inplaceOps=False, **kwarg):
+        super().__init__(self, *arg, inplaceOps=inplaceOps, **kwarg)
+
     def tryToExecute(self):
         r = self.getInternal('request')
         if r:
-            tableNamespace = self.kwarg.get('tableNamespace')
+            tableNamespace = self.kwarg.pop('tableNamespace', None)
             if tableNamespace:
                 m = TableNamespaceMap(tableNamespace)
                 r = r.format_map(m)

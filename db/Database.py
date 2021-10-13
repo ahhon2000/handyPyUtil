@@ -236,6 +236,16 @@ class Database(ClonableClass):
     def raiseDBConnectionError(self, msg0, e):
         self.raiseDBError(msg0, e, DBConnectionError)
 
+    def tableNamespace(self, tns):
+        """Return a TableNamespace object that operates in namespace tns
+
+        For a detailed description of how TableNamespace works see its
+        doc string.
+        """
+
+        from .TableNamespace import TableNamespace
+        return TableNamespace(self, tableNamespace=tns)
+
     """
     
       *** Methods to Override in Subclasses ***

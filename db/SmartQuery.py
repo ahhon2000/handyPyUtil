@@ -11,11 +11,13 @@ class SmartQuery:
         'request': (str, bytes),
     }
 
-    def __init__(self, *arg, **kwarg):
+    def __init__(self, *arg, inplaceOps=True, **kwarg):
         self._internals = {
             'db': None, 'request': None,
         }
 
+        self.inplaceOps = inplaceOps
+        
         self._positionalValues = []
         self._subscripts = []
         self.kwarg = {}
@@ -158,18 +160,30 @@ class SmartQuery:
         kwarg['cmpst_carg'] = list(chain(kwarg.get('cmpst_carg', ()), ((),)))
         kwarg['cmpst_ckwarg'] = list(chain(kwarg.get('cmpst_ckwarg', ()), ({},)))
 
+    def _getWorkingInstance(self):
+        sq = self
+        if not self.inplaceOps:
+            sq = type(self)(inplaceOps=True) / self
+            sq.inplaceOps = False
+
+        return sq
+
     def __call__(self, *arg, **kwarg):
-        self._consumeArg(arg, kwarg)
-        return self.tryToExecute()
+        sq = self._getWorkingInstance()
+        sq._consumeArg(arg, kwarg)
+        return sq.tryToExecute()
 
     def __truediv__(self, x):
-        self._consumeArg((x,), {})
-        return self.tryToExecute()
+        sq = self._getWorkingInstance()
+        sq._consumeArg((x,), {})
+        return sq.tryToExecute()
 
     def __mul__(self, x):
-        self._appendPositionalValue(x)
-        return self
+        sq = self._getWorkingInstance()
+        sq._appendPositionalValue(x)
+        return sq
 
     def __getitem__(self, subscript):
-        self._extendSubscripts((subscript,))
-        return self.tryToExecute()
+        sq = self._getWorkingInstance()
+        sq._extendSubscripts((subscript,))
+        return sq.tryToExecute()

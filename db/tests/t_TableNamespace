@@ -3,11 +3,16 @@ try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
     L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
 except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
+from more_itertools import first
+
+from . import TestKitDB
 from ..TableNamespace import TableNamespace
-from ..Database_mysql import Database_mysql
+from .. import Database_mysql, Database_sqlite
+
+from .. import TableRow
 
 
-def doTest():
+def testOnAMockDB():
     success = False
 
     class MockDB(Database_mysql):
@@ -24,4 +29,69 @@ def doTest():
     q / f"SELECT * FROM {{events}}"
     assert success
 
-doTest()
+def testOnARealDB():
+    with TestKitDB() as tk:
+        for DBCls in (
+            Database_sqlite,
+            Database_mysql,
+        ):
+            q = tk.connect(DBCls=DBCls)
+            tns = q.tableNamespace('user1')
+
+            tns / "DROP TABLE IF EXISTS {mytable}"
+            tns / "CREATE TABLE {mytable} (id INTEGER PRIMARY KEY NOT NULL)"
+            tns / f"""
+                INSERT INTO {{mytable}}
+                (id) VALUES (41)
+            """
+
+            r = tns[0] / f"SELECT * FROM {{mytable}} WHERE {{mytable}}.id=41"
+            assert r['id'] == 41
+
+            # check if the table user1_mytable was really created
+
+            r = q[0] / "SELECT * FROM user1_mytable WHERE id=41"
+            assert r['id'] == 41
+
+            # check various ways of invoking the tns object
+
+            rs = tns(aslist=True) / "SELECT NULL AS x"
+            assert rs[0]['x'] is None
+
+            rs = tns / tns([41]) / "SELECT * FROM {mytable} WHERE id=%s"
+            assert next(rs)['id'] == 41
+
+            rs = tns * 40 * 42 / """
+                SELECT * FROM {mytable} WHERE id > %s and id < %s
+            """
+            assert next(rs)['id'] == 41
+
+            rs = tns([40]) * 42 / """
+                SELECT * FROM {mytable} WHERE id > %s and id < %s
+            """
+            assert next(rs)['id'] == 41
+
+            rs = tns() / (lambda r: {'id': 2*r['id']}) / """
+                SELECT * FROM {mytable}
+            """
+            assert first(rs)['id'] == 82
+
+            class BindObject: pass
+            bo = BindObject()
+            bo.dbobj = q
+
+            class MyTable(TableRow):
+                _columnDefs = {'id': {}}
+
+            rs = tns(bindObject=bo, aslist=True) / MyTable / """
+                SELECT * FROM {mytable}
+            """
+
+            assert len(rs) == 1
+            mt = rs[0]
+            assert isinstance(mt, MyTable)
+            assert mt._bindObject is bo
+            assert mt.id == 41
+
+testOnAMockDB()
+testOnARealDB()
