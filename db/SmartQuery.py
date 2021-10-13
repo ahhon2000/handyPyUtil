@@ -18,7 +18,7 @@ class SmartQuery:
 
         self._positionalValues = []
         self._subscripts = []
-        self._kwarg = {}
+        self.kwarg = {}
 
         self._consumeArg(arg, kwarg)
 
@@ -29,7 +29,7 @@ class SmartQuery:
             processed_a = False
             for k, ts in self.INTERNAL_ATTR_TYPES.items():
                 if isinstance(a, ts):
-                    self._setInternal(k, a)
+                    self.setInternal(k, a)
                     processed_a = True
                     break
 
@@ -37,10 +37,10 @@ class SmartQuery:
                 if isinstance(a, SmartQuery):
                     for k, v in a._internals.items():
                         if v is not None:
-                            self._setInternal(k, v)
+                            self.setInternal(k, v)
                     self._extendPositionalValues(a._positionalValues)
                     self._extendSubscripts(a._subscripts)
-                    self._update_kwarg(a._kwarg)
+                    self._update_kwarg(a.kwarg)
                 elif isinstance(a, dict):
                     self._update_kwarg(a)
                 elif isinstance(a, (tuple, list, set)):
@@ -55,7 +55,7 @@ class SmartQuery:
         self._subscripts.extend(ss)
 
     def _update_kwarg(self, dic):
-        kwarg = self._kwarg
+        kwarg = self.kwarg
         cmpst_cast = dic.get('cmpst_cast')
 
         for k, v in dic.items():
@@ -79,11 +79,15 @@ class SmartQuery:
                     {} for i in range(len(cmpst_cast))
                 ]
 
-    def _setInternal(self, k, v):
+    def getInternal(self, k):
+        return self._internals[k]
+
+    def setInternal(self, k, v, previouslySetOk=False):
         ints = self._internals
         v0 = ints.get(k)
-        if v0 is not None  and  not isinstance(v0, Database):
-            raise Exception(f'the SmartQuery internal attribute "{k}" was set more than once')
+        if not previouslySetOk:
+            if v0 is not None and not isinstance(v0, Database):
+                raise Exception(f'the SmartQuery internal attribute "{k}" was set more than once')
 
         ints[k] = v
 
@@ -94,7 +98,7 @@ class SmartQuery:
         for v in vs:
             self._appendPositionalValue(v)
 
-    def _execute(self):
+    def tryToExecute(self):
         ints = self._internals
         db, r = ints['db'], ints['request']
 
@@ -137,7 +141,7 @@ class SmartQuery:
 
         placeholders = set(db.extractNamedPlaceholders(r))
 
-        for k, v in self._kwarg.items():
+        for k, v in self.kwarg.items():
             if k in placeholders:
                 namedValues[k] = v
             else:
@@ -146,7 +150,7 @@ class SmartQuery:
         return namedValues, qpars
 
     def _addFuncToCmpst(self, f):
-        kwarg = self._kwarg
+        kwarg = self.kwarg
         for k in ('cmpst_cast', 'cmpst_carg', 'cmpst_ckwarg'):
             kwarg.setdefault(k, [])
 
@@ -156,11 +160,11 @@ class SmartQuery:
 
     def __call__(self, *arg, **kwarg):
         self._consumeArg(arg, kwarg)
-        return self._execute()
+        return self.tryToExecute()
 
     def __truediv__(self, x):
         self._consumeArg((x,), {})
-        return self._execute()
+        return self.tryToExecute()
 
     def __mul__(self, x):
         self._appendPositionalValue(x)
@@ -168,4 +172,4 @@ class SmartQuery:
 
     def __getitem__(self, subscript):
         self._extendSubscripts((subscript,))
-        return self._execute()
+        return self.tryToExecute()

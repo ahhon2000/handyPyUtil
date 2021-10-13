@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+from ..TableNamespace import TableNamespace
+from ..Database_mysql import Database_mysql
+
+
+def doTest():
+    success = False
+
+    class MockDB(Database_mysql):
+        def __init__(self): pass
+
+        def execute(self, r, **kwarg):
+            nonlocal success
+            if r == 'SELECT * FROM `someuser_events`':
+                success = True
+
+    dbobj = MockDB()
+    q = TableNamespace(dbobj, tableNamespace='someuser')
+
+    q / f"SELECT * FROM {{events}}"
+    assert success
+
+doTest()
